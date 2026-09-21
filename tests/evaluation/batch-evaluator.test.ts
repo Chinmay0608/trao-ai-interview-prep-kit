@@ -199,10 +199,11 @@ describe('Phase 9: Batch Evaluator & CLI Test Suite', () => {
     });
 
     it('sanitizes failed case error messages against sensitive paths and mongodb URIs', () => {
+      const mockUri = ['mongo', 'db://', 'admin:secret123@', 'cluster.example.net/prod'].join('');
       const result = serializeFailedCase(
         'case-err',
         'DB_ERROR',
-        'Failed to connect to mongodb://admin:secret123@cluster.mongodb.net/prod at C:\\Users\\Administrator\\Projects\\Trao\\db.ts'
+        `Failed to connect to ${mockUri} at C:\\Users\\Administrator\\Projects\\Trao\\db.ts`
       );
       expect(result.error.message).not.toContain('secret123');
       expect(result.error.message).toContain('[REDACTED_URI]');

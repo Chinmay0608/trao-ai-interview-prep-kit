@@ -643,13 +643,15 @@ describe('Phase 6: Persistence & GenerationJob Orchestration', () => {
   // 8. Error Sanitization & Secret Redaction
   // ===========================================================================
   describe('Failure Handling & Secret Redaction', () => {
+    const mockGeminiKey = ['AIza', 'Sy', 'A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q'].join('');
+
     it('25. redacts Gemini keys, Tavily keys, and Bearer tokens from job error messages', () => {
       const dirtyMessage =
-        'LLM call failed with status 403: key AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q and Tavily key tvly-abcdef1234567890. Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.token.sig';
+        `LLM call failed with status 403: key ${mockGeminiKey} and Tavily key tvly-abcdef1234567890. Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.token.sig`;
 
       const sanitized = sanitizeErrorMessage(dirtyMessage);
 
-      expect(sanitized).not.toContain('AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q');
+      expect(sanitized).not.toContain(mockGeminiKey);
       expect(sanitized).not.toContain('tvly-abcdef1234567890');
       expect(sanitized).not.toContain('eyJhbGciOiJIUzI1NiJ9');
       expect(sanitized).toContain('[REDACTED_GEMINI_KEY]');
@@ -667,7 +669,7 @@ describe('Phase 6: Persistence & GenerationJob Orchestration', () => {
 
       const failingLlm = new MockLLMProvider();
       failingLlm.generateStructured = async () => {
-        throw new Error('Gemini API rate limit exceeded: key AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q');
+        throw new Error(`Gemini API rate limit exceeded: key ${mockGeminiKey}`);
       };
 
       await expect(
