@@ -28,7 +28,7 @@ export interface LLMRequest {
 }
 
 export interface LLMStructuredRequest<T> extends LLMRequest {
-  schema: z.ZodType<T>;
+  schema: z.ZodType<T, any, any>;
   schemaName?: string;
 }
 
