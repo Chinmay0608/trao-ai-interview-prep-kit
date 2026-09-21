@@ -5,6 +5,9 @@ import {
   QuestionCategory,
   LLMProvider,
   ResearchProvider,
+  calculateCoverage,
+  generateQuestionId,
+  InternalQuestion,
 } from '@trao/shared';
 import { requireAuth } from '../auth/authMiddleware.js';
 import { validateBody, validateParams } from '../middleware/validationMiddleware.js';
@@ -12,6 +15,7 @@ import { generationRateLimiter } from '../middleware/rateLimiterMiddleware.js';
 import { GenerationJobService } from '../services/jobs/jobService.js';
 import { GenerationRunner } from '../services/jobs/generationRunner.js';
 import { regenerationService } from '../services/regeneration/regenerationService.js';
+import { KitNotFoundError, UnknownQuestionIdError } from '../services/jobs/errors.js';
 import { Kit } from '../db/models/Kit.js';
 import { toBuilderViewModel } from '../db/converters/kitConverter.js';
 import { GeminiLLMProvider } from '../providers/llm/GeminiLLMProvider.js';
@@ -203,6 +207,211 @@ router.post(
       });
 
       res.status(200).json(updatedKit);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * PATCH /api/kits/:id/questions/:questionId
+ * Updates question fields and flags question origin as 'edited'.
+ */
+router.patch(
+  '/:id/questions/:questionId',
+  requireAuth,
+  validateParams(KitParamsSchema.extend({ questionId: z.string().min(1) })),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const kitId = req.params.id as string;
+      const questionId = req.params.questionId as string;
+
+      const kit = await Kit.findOne({
+        _id: new mongoose.Types.ObjectId(kitId),
+        userId: new mongoose.Types.ObjectId(req.user!.id),
+      });
+
+      if (!kit || !kit.internalKit) {
+        throw new KitNotFoundError(kitId);
+      }
+
+      const qIndex = kit.internalKit.questions.findIndex((q) => q.id === questionId);
+      if (qIndex === -1) {
+        throw new UnknownQuestionIdError(questionId);
+      }
+
+      const existingQ = kit.internalKit.questions[qIndex];
+      const { prompt, answer_outline, category, difficulty, requirement_ids } = req.body;
+
+      const clampedDifficulty = (
+        typeof difficulty === 'number' && [1, 2, 3].includes(difficulty) ? difficulty : existingQ.difficulty
+      ) as 1 | 2 | 3;
+
+      kit.internalKit.questions[qIndex] = {
+        ...existingQ,
+        prompt: typeof prompt === 'string' ? prompt : existingQ.prompt,
+        answer_outline: typeof answer_outline === 'string' ? answer_outline : existingQ.answer_outline,
+        category: category || existingQ.category,
+        difficulty: clampedDifficulty,
+        requirement_ids: Array.isArray(requirement_ids) ? requirement_ids : existingQ.requirement_ids,
+        _meta: {
+          ...existingQ._meta,
+          origin: existingQ._meta.origin === 'custom' ? 'custom' : 'edited',
+        },
+      };
+
+      const coverageResult = calculateCoverage(
+        kit.internalKit.questions,
+        kit.internalKit.role.requirements
+      );
+      kit.internalKit.coverage = coverageResult.toAppendixACoverage(kit.internalKit.coverage.passes);
+
+      kit.markModified('internalKit');
+      await kit.save();
+
+      res.status(200).json(toBuilderViewModel(kit));
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * PATCH /api/kits/:id/questions/:questionId/pin
+ * Toggles the pinned flag for a question.
+ */
+router.patch(
+  '/:id/questions/:questionId/pin',
+  requireAuth,
+  validateParams(KitParamsSchema.extend({ questionId: z.string().min(1) })),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const kitId = req.params.id as string;
+      const questionId = req.params.questionId as string;
+
+      const kit = await Kit.findOne({
+        _id: new mongoose.Types.ObjectId(kitId),
+        userId: new mongoose.Types.ObjectId(req.user!.id),
+      });
+
+      if (!kit || !kit.internalKit) {
+        throw new KitNotFoundError(kitId);
+      }
+
+      const qIndex = kit.internalKit.questions.findIndex((q) => q.id === questionId);
+      if (qIndex === -1) {
+        throw new UnknownQuestionIdError(questionId);
+      }
+
+      kit.internalKit.questions[qIndex]._meta.pinned = Boolean(req.body.pinned);
+      kit.markModified('internalKit');
+      await kit.save();
+
+      res.status(200).json(toBuilderViewModel(kit));
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * POST /api/kits/:id/questions
+ * Appends a custom user-created question with stable question ID.
+ */
+router.post(
+  '/:id/questions',
+  requireAuth,
+  validateParams(KitParamsSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const kitId = req.params.id as string;
+      const kit = await Kit.findOne({
+        _id: new mongoose.Types.ObjectId(kitId),
+        userId: new mongoose.Types.ObjectId(req.user!.id),
+      });
+
+      if (!kit || !kit.internalKit) {
+        throw new KitNotFoundError(kitId);
+      }
+
+      const { prompt, answer_outline, category, difficulty, requirement_ids } = req.body;
+      if (!prompt || !category) {
+        return res.status(400).json({
+          error: { code: 'VALIDATION_ERROR', message: 'Prompt and category are required.' },
+        });
+      }
+
+      const newQ: InternalQuestion = {
+        id: generateQuestionId(),
+        requirement_ids: Array.isArray(requirement_ids) ? requirement_ids : [],
+        category,
+        prompt,
+        answer_outline: answer_outline || '',
+        difficulty: ([1, 2, 3].includes(Number(difficulty)) ? Number(difficulty) : 2) as 1 | 2 | 3,
+        _meta: {
+          origin: 'custom',
+          pinned: false,
+        },
+      };
+
+      kit.internalKit.questions.push(newQ);
+      const addCoverageResult = calculateCoverage(
+        kit.internalKit.questions,
+        kit.internalKit.role.requirements
+      );
+      kit.internalKit.coverage = addCoverageResult.toAppendixACoverage(kit.internalKit.coverage.passes);
+
+      kit.markModified('internalKit');
+      await kit.save();
+
+      res.status(201).json(toBuilderViewModel(kit));
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * DELETE /api/kits/:id/questions/:questionId
+ * Deletes a question and cleans up associated references.
+ */
+router.delete(
+  '/:id/questions/:questionId',
+  requireAuth,
+  validateParams(KitParamsSchema.extend({ questionId: z.string().min(1) })),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const kitId = req.params.id as string;
+      const questionId = req.params.questionId as string;
+
+      const kit = await Kit.findOne({
+        _id: new mongoose.Types.ObjectId(kitId),
+        userId: new mongoose.Types.ObjectId(req.user!.id),
+      });
+
+      if (!kit || !kit.internalKit) {
+        throw new KitNotFoundError(kitId);
+      }
+
+      kit.internalKit.questions = kit.internalKit.questions.filter((q) => q.id !== questionId);
+      for (const day of kit.internalKit.schedule.days) {
+        day.question_ids = day.question_ids.filter((id) => id !== questionId);
+      }
+      kit.internalKit.flashcards = kit.internalKit.flashcards.filter((f) => {
+        const qRef = (f as any).question_id || (f as any).question_reference;
+        return qRef !== questionId;
+      });
+
+      const delCoverageResult = calculateCoverage(
+        kit.internalKit.questions,
+        kit.internalKit.role.requirements
+      );
+      kit.internalKit.coverage = delCoverageResult.toAppendixACoverage(kit.internalKit.coverage.passes);
+
+      kit.markModified('internalKit');
+      await kit.save();
+
+      res.status(200).json(toBuilderViewModel(kit));
     } catch (err) {
       next(err);
     }

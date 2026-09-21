@@ -16,7 +16,9 @@
     "build:shared": "npm run build -w shared",
     "build:server": "npm run build -w server",
     "build:client": "npm run build -w client",
-    "test": "vitest run",
+    "test": "vitest run && npm run test -w client",
+    "test:backend": "vitest run",
+    "test:client": "npm run test -w client",
     "test:watch": "vitest",
     "evaluate": "tsx server/src/cli/evaluate.ts"
   },
