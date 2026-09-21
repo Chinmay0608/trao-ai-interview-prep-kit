@@ -14,6 +14,7 @@ import {
   KitNotFoundError,
   StaleGenerationError,
 } from './errors.js';
+import { sseManager } from '../sse/sseManager.js';
 
 export class GenerationRunner {
   constructor(
@@ -92,6 +93,13 @@ export class GenerationRunner {
           stepProgress.step,
           pct
         );
+
+        sseManager.emitProgress(jobId, {
+          jobId,
+          status: 'running',
+          currentStep: stepProgress.step,
+          progress: pct,
+        });
       };
 
       // 5. Execute headless Phase 5 pipeline
@@ -154,6 +162,15 @@ export class GenerationRunner {
           }
         );
 
+        sseManager.emitFailed(jobId, {
+          jobId,
+          status: 'failed',
+          error: {
+            code: 'STALE_GENERATION',
+            message: staleError.message,
+          },
+        });
+
         throw staleError;
       }
 
@@ -169,6 +186,13 @@ export class GenerationRunner {
           },
         }
       );
+
+      sseManager.emitCompleted(jobId, {
+        jobId,
+        status: 'completed',
+        kitId: kit._id.toString(),
+        progress: 100,
+      });
 
       return result;
     } catch (err: any) {
@@ -196,6 +220,15 @@ export class GenerationRunner {
           },
         }
       );
+
+      sseManager.emitFailed(jobId, {
+        jobId,
+        status: 'failed',
+        error: {
+          code: errorCode,
+          message: sanitizedMessage,
+        },
+      });
 
       // Mark kit as failed if it was currently generating under this version
       await Kit.updateOne(

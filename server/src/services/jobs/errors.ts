@@ -56,3 +56,10 @@ export class JobClaimConflictError extends Error {
     this.name = 'JobClaimConflictError';
   }
 }
+
+export class UnknownQuestionIdError extends Error {
+  constructor(public readonly questionId: string) {
+    super(`Question ID '${questionId}' was not found in this prep kit.`);
+    this.name = 'UnknownQuestionIdError';
+  }
+}

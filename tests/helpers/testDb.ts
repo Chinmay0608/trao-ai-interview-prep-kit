@@ -8,7 +8,15 @@ let mongodInstance: any = null;
  * if no local instance is active.
  */
 export async function setupTestDb(): Promise<string> {
-  const localTestUri = process.env.MONGODB_TEST_URI || 'mongodb://127.0.0.1:27017/trao_test_isolated';
+  const poolId = process.env.VITEST_POOL_ID || `${process.pid}_${Math.random().toString(36).substring(2, 7)}`;
+  const defaultBase = 'mongodb://127.0.0.1:27017';
+  let localTestUri = process.env.MONGODB_TEST_URI;
+
+  if (!localTestUri) {
+    localTestUri = `${defaultBase}/trao_test_${poolId}`;
+  } else if (localTestUri.includes('trao_test')) {
+    localTestUri = localTestUri.replace(/trao_test[^?\/]*/, `trao_test_${poolId}`);
+  }
 
   try {
     if (mongoose.connection.readyState === 1) {

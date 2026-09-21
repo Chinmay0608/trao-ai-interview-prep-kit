@@ -1,23 +1,24 @@
-import express from 'express';
-import cors from 'cors';
 import dotenv from 'dotenv';
+import { createApp } from './app.js';
+import { connectDb } from './db/connection.js';
 
 dotenv.config();
 
-const app = express();
+const app = createApp();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
-app.use(express.json());
-
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'trao-prep-kit-server', timestamp: new Date().toISOString() });
-});
-
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    console.log(`[server] Server listening on port ${PORT}`);
-  });
+  connectDb()
+    .then(() => {
+      console.log('[server] Connected to MongoDB.');
+      app.listen(PORT, () => {
+        console.log(`[server] Server listening on port ${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error('[server] Failed to connect to database:', err);
+      process.exit(1);
+    });
 }
 
 export default app;
