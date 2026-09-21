@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/providers/llm/geminillmprovider.ts","./src/providers/mocks/mockllmprovider.ts","./src/providers/mocks/mockresearchprovider.ts","./src/providers/research/duckduckgohtmlsearchprovider.ts","./src/providers/research/tavilysearchprovider.ts"],"version":"5.9.3"}

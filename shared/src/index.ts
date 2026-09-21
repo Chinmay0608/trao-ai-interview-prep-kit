@@ -11,3 +11,7 @@ export * from './engine/scheduler.js';
 export * from './engine/serializer.js';
 export * from './engine/deduplication.js';
 export * from './engine/questionIds.js';
+export * from './providers/errors.js';
+export * from './providers/rateLimiter.js';
+export * from './providers/llm.js';
+export * from './providers/research.js';
