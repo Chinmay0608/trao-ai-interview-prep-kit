@@ -1,0 +1,123 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-09-21T10:20:24.924Z",
+  "kits": [
+    {
+      "id": "case-01",
+      "status": "ok",
+      "kit": {
+        "source": {
+          "company": "Acme",
+          "company_url": "https://acme.example.com",
+          "role": "Software Engineer",
+          "location": "Not specified in posting",
+          "jd_chars": 340,
+          "researched_at": "2026-09-21T10:20:24.869Z",
+          "pages_used": []
+        },
+        "company_brief": {
+          "summary": "Limited or unreachable information for Acme. Company website was not accessible or returned no extractable text.",
+          "what_they_do": "Unable to verify what the company does from public research and crawl evidence.",
+          "sources": []
+        },
+        "role": {
+          "title": "Software Engineer",
+          "seniority": "Mid-Senior",
+          "responsibilities": [
+            "Develop scalable systems",
+            "Conduct code reviews"
+          ],
+          "requirements": [
+            {
+              "id": "r1",
+              "text": "Solid understanding of algorithms and system architecture",
+              "kind": "technical",
+              "priority": "must"
+            },
+            {
+              "id": "r2",
+              "text": "Experience with team communication and agile ceremonies",
+              "kind": "behavioural",
+              "priority": "must"
+            }
+          ]
+        },
+        "questions": [
+          {
+            "id": "q_sample01",
+            "requirement_ids": ["r1"],
+            "category": "technical",
+            "prompt": "Explain the principles of high-throughput distributed architectures.",
+            "answer_outline": "Cover load balancing, caching tiers, database replication, and eventual consistency.",
+            "difficulty": 3
+          },
+          {
+            "id": "q_sample02",
+            "requirement_ids": ["r2"],
+            "category": "behavioural",
+            "prompt": "Describe how you handle cross-functional disagreements in technical requirements.",
+            "answer_outline": "Use the STAR method: Situation, Task, Action taken, Result achieved.",
+            "difficulty": 2
+          }
+        ],
+        "flashcards": [
+          {
+            "id": "f_sample01",
+            "front": "What is eventual consistency?",
+            "back": "A consistency model where all replicas eventually converge to the same value.",
+            "requirement_ids": ["r1"]
+          }
+        ],
+        "schedule": {
+          "days_available": 5,
+          "days": [
+            {
+              "day": 1,
+              "focus": "Core Technical Must-Haves & Architecture",
+              "question_ids": ["q_sample01"],
+              "minutes": 60
+            },
+            {
+              "day": 2,
+              "focus": "Leadership, Mentorship & Behavioural Mastery",
+              "question_ids": ["q_sample02"],
+              "minutes": 45
+            },
+            {
+              "day": 3,
+              "focus": "Full Mock Simulation & Final Synthesis",
+              "question_ids": ["q_sample01", "q_sample02"],
+              "minutes": 90
+            },
+            {
+              "day": 4,
+              "focus": "Technical Deep-Dives & Practical Scenarios",
+              "question_ids": ["q_sample01"],
+              "minutes": 60
+            },
+            {
+              "day": 5,
+              "focus": "Final Polish & High-Priority Review",
+              "question_ids": ["q_sample01", "q_sample02"],
+              "minutes": 90
+            }
+          ]
+        },
+        "coverage": {
+          "uncovered_requirement_ids": [],
+          "passes": 1
+        }
+      },
+      "error": null
+    },
+    {
+      "id": "case-failed-example",
+      "status": "failed",
+      "kit": null,
+      "error": {
+        "code": "INVALID_JD",
+        "message": "Job description string is missing or empty."
+      }
+    }
+  ]
+}

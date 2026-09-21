@@ -1,0 +1,32 @@
+[
+  {
+    "id": "case-01",
+    "jd": "Senior Backend Engineer\n\nWe are looking for a Senior Backend Engineer to join our infrastructure team. You will lead the architecture of distributed streaming services.\n\nRequirements:\n- 5+ years building distributed backend systems (Required)\n- Proven track record mentoring engineers (Required)\n- Familiarity with Kubernetes (Nice to have)",
+    "company_url": "https://acme.example.com",
+    "days": 5
+  },
+  {
+    "id": "case-02",
+    "jd": "Staff Full Stack Engineer\n\nMust have 8+ years experience with React, TypeScript, and microservices architecture. Required.\nStrong communication skills. Required.\nExperience with GraphQL and AWS. Nice to have.",
+    "company_url": "https://techcorp.example.com",
+    "days": 1
+  },
+  {
+    "id": "case-03",
+    "jd": "Principal Systems Architect\n\nResponsibilities include distributed consensus, low-latency transaction processing, and multi-region failover.\nRequirements:\n- 10+ years designing enterprise distributed systems (Required)\n- Deep expertise in database internals (Required)\n- Experience leading large technical organizations (Nice to have)",
+    "company_url": "https://cloudscale.example.com",
+    "days": 60
+  },
+  {
+    "id": "case-04",
+    "jd": "Frontend Developer needed. Must know React and CSS. Bonus for TypeScript.",
+    "company_url": "https://startup.example.com",
+    "days": 3
+  },
+  {
+    "id": "case-05",
+    "jd": "DevOps Engineer\n\nManage CI/CD pipelines, Kubernetes clusters, and monitoring.\nRequirements:\n- 4+ years DevOps experience (Required)\n- Infrastructure as Code with Terraform (Required)",
+    "company_url": "https://nonexistent-404-company-site.example.com",
+    "days": 7
+  }
+]

@@ -133,3 +133,11 @@ export const AppendixAKitSchema = z
   });
 
 export type AppendixAKitType = z.infer<typeof AppendixAKitSchema>;
+
+/**
+ * Validates any object against the strict Appendix A schema.
+ * Returns the parsed AppendixAKit or throws a ZodError with detailed issues.
+ */
+export function validateAppendixA(data: unknown): AppendixAKitType {
+  return AppendixAKitSchema.parse(data);
+}
