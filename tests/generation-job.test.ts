@@ -4,29 +4,27 @@ import {
   AppendixAKitSchema,
   InternalPrepKit,
 } from '@trao/shared';
-import {
-  User,
-  Kit,
-  GenerationJob,
-} from '../server/src/db/models/index.js';
+import { User } from '../server/src/db/models/User.js';
+import { Kit } from '../server/src/db/models/Kit.js';
+import { GenerationJob } from '../server/src/db/models/GenerationJob.js';
 import {
   toBuilderViewModel,
   toAppendixAKit,
   toGenerationJobInfo,
 } from '../server/src/db/converters/kitConverter.js';
+import { GenerationJobService } from '../server/src/services/jobs/jobService.js';
+import { GenerationRunner } from '../server/src/services/jobs/generationRunner.js';
+import { recoverStaleJobs } from '../server/src/services/jobs/recoveryWorker.js';
+import { assertValidTransition } from '../server/src/services/jobs/jobStateMachine.js';
 import {
-  GenerationJobService,
-  GenerationRunner,
-  recoverStaleJobs,
-  assertValidTransition,
   InvalidJobTransitionError,
   StaleGenerationError,
   JobNotFoundError,
   KitNotFoundError,
   UnauthorizedAccessError,
   JobClaimConflictError,
-  sanitizeErrorMessage,
-} from '../server/src/services/jobs/index.js';
+} from '../server/src/services/jobs/errors.js';
+import { sanitizeErrorMessage } from '../server/src/services/jobs/sanitizer.js';
 import { MockLLMProvider } from '../server/src/providers/mocks/MockLLMProvider.js';
 import { MockResearchProvider } from '../server/src/providers/mocks/MockResearchProvider.js';
 import {
