@@ -20,3 +20,4 @@ coverage/
 test-output.json
 kits.json
 cases.json
+*.pdf
