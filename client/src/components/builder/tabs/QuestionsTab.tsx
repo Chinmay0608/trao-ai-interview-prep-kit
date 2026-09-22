@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useId } from 'react';
+import React, { useState, useId } from 'react';
 import { BuilderViewModel, InternalQuestion, QuestionCategory } from '@trao/shared';
 import { api, ApiError } from '@/lib/api';
 import {
@@ -15,6 +15,9 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Sparkles,
+  HelpCircle,
+  Lightbulb,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { RegenerateModal } from '../RegenerateModal';
@@ -53,22 +56,32 @@ export function QuestionsTab({ kit, kitId, onKitUpdate }: QuestionsTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Regenerate full bank */}
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setRegenerateCategory(null)}
-          className="flex items-center gap-1.5 text-xs font-medium text-slate-600 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
-        >
-          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-          Regenerate all questions
-        </button>
+      {/* Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">Role-Specific Question Bank</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {questions.length} questions mapped directly to job requirements and company architecture.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setRegenerateCategory(null)}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 active:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 shadow-2xs"
+          >
+            <RefreshCw className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+            Regenerate all questions
+          </button>
+        </div>
       </div>
 
       {questions.length === 0 && (
-        <p className="text-sm text-slate-400 py-8 text-center">
-          Questions will appear after the kit is generated.
-        </p>
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-12 text-center shadow-xs">
+          <p className="text-sm text-slate-500">
+            Questions will appear after the kit is generated.
+          </p>
+        </div>
       )}
 
       {CATEGORIES.map((cat) => {
@@ -77,13 +90,13 @@ export function QuestionsTab({ kit, kitId, onKitUpdate }: QuestionsTabProps) {
         const collapsed = collapsedCategories.has(cat);
 
         return (
-          <div key={cat}>
-            {/* Category header */}
-            <div className="flex items-center justify-between mb-3">
+          <div key={cat} className="space-y-3">
+            {/* Category Header Bar */}
+            <div className="flex items-center justify-between px-1">
               <button
                 type="button"
                 onClick={() => toggleCategory(cat)}
-                className="flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-slate-700 focus:outline-none"
+                className="flex items-center gap-2 text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                 aria-expanded={!collapsed}
               >
                 {collapsed ? (
@@ -91,29 +104,30 @@ export function QuestionsTab({ kit, kitId, onKitUpdate }: QuestionsTabProps) {
                 ) : (
                   <ChevronUp className="h-4 w-4 text-slate-400" aria-hidden="true" />
                 )}
-                {CATEGORY_LABELS[cat]}
-                <span className="font-normal text-slate-400">({catQs.length})</span>
+                <span>{CATEGORY_LABELS[cat]}</span>
+                <span className="text-xs font-medium text-slate-400 font-mono">({catQs.length})</span>
               </button>
+
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setAddingCategory(cat)}
-                  className="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 focus:outline-none focus:underline"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-2.5 py-1 rounded-md hover:bg-slate-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 shadow-2xs"
                 >
-                  <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add
+                  <Plus className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" /> Add
                 </button>
                 <button
                   type="button"
                   onClick={() => setRegenerateCategory(cat)}
-                  className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 focus:outline-none focus:underline"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50/70 border border-blue-200/60 px-2.5 py-1 rounded-md hover:bg-blue-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 shadow-2xs"
                 >
-                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> Regenerate
+                  <RefreshCw className="h-3.5 w-3.5 text-blue-500" aria-hidden="true" /> Regenerate
                 </button>
               </div>
             </div>
 
             {!collapsed && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {catQs.map((q) => (
                   <QuestionCard
                     key={q.id}
@@ -123,11 +137,15 @@ export function QuestionsTab({ kit, kitId, onKitUpdate }: QuestionsTabProps) {
                     onUpdate={onKitUpdate}
                   />
                 ))}
+
                 {catQs.length === 0 && (
-                  <p className="text-sm text-slate-400 py-4 text-center border border-dashed border-slate-200 rounded-lg">
-                    No {CATEGORY_LABELS[cat].toLowerCase()} questions yet.
-                  </p>
+                  <div className="bg-white rounded-xl border border-dashed border-slate-200 p-6 text-center">
+                    <p className="text-xs text-slate-400">
+                      No {CATEGORY_LABELS[cat].toLowerCase()} questions yet.
+                    </p>
+                  </div>
                 )}
+
                 {addingCategory === cat && (
                   <AddQuestionForm
                     category={cat}
@@ -161,7 +179,7 @@ export function QuestionsTab({ kit, kitId, onKitUpdate }: QuestionsTabProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Question Card
+// Question Card Component
 // ---------------------------------------------------------------------------
 
 interface QuestionCardProps {
@@ -175,6 +193,7 @@ function QuestionCard({ question: q, kitId, requirements, onUpdate }: QuestionCa
   const [editing, setEditing] = useState(false);
   const [pinning, setPinning] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [outlineOpen, setOutlineOpen] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const handlePin = async () => {
@@ -206,12 +225,12 @@ function QuestionCard({ question: q, kitId, requirements, onUpdate }: QuestionCa
   const originBadge = {
     generated: null,
     edited: (
-      <span className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200/70 px-1.5 py-0.5 rounded tracking-wide uppercase">
         Edited
       </span>
     ),
     custom: (
-      <span className="text-xs font-medium text-teal-600 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded">
+      <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200/70 px-1.5 py-0.5 rounded tracking-wide uppercase">
         Custom
       </span>
     ),
@@ -235,52 +254,107 @@ function QuestionCard({ question: q, kitId, requirements, onUpdate }: QuestionCa
   return (
     <div
       className={clsx(
-        'group bg-white rounded-lg border px-4 py-3',
-        q._meta.pinned ? 'border-amber-300 bg-amber-50' : 'border-slate-200'
+        'group bg-white rounded-xl border p-4 sm:p-5 transition-all shadow-2xs hover:shadow-xs relative',
+        q._meta.pinned
+          ? 'border-amber-300 bg-amber-50/20'
+          : 'border-slate-200/90 hover:border-slate-300'
       )}
     >
-      {/* Meta row */}
-      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-        <span className="text-xs font-mono text-slate-300">{q.id}</span>
-        <span
-          className={clsx(
-            'text-xs font-medium px-1.5 py-0.5 rounded border',
-            {
-              1: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-              2: 'bg-amber-50 text-amber-600 border-amber-200',
-              3: 'bg-red-50 text-red-600 border-red-200',
-            }[q.difficulty]
-          )}
-        >
-          {DIFFICULTY_LABELS[q.difficulty]}
-        </span>
-        {q._meta.pinned && (
-          <span className="text-xs font-medium text-amber-700" aria-label="Pinned">
-            📌 Pinned
+      {/* Top Meta Header */}
+      <div className="flex items-center justify-between gap-2 mb-2.5">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <span className="text-[10px] font-mono text-slate-400 select-none">{q.id}</span>
+          <span
+            className={clsx(
+              'text-[10px] font-bold px-2 py-0.5 rounded border tracking-wide uppercase',
+              {
+                1: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+                2: 'bg-amber-50 text-amber-700 border-amber-200/60',
+                3: 'bg-rose-50 text-rose-700 border-rose-200/60',
+              }[q.difficulty]
+            )}
+          >
+            {DIFFICULTY_LABELS[q.difficulty]}
           </span>
-        )}
-        {originBadge}
-        {error && <span className="text-xs text-red-500">{error}</span>}
+          {q._meta.pinned && (
+            <span
+              className="inline-flex items-center text-[10px] font-bold text-amber-800 bg-amber-100/70 border border-amber-300/80 px-2 py-0.5 rounded tracking-wide"
+              aria-label="Pinned"
+            >
+              📌 Pinned
+            </span>
+          )}
+          {originBadge}
+        </div>
+
+        {/* Action Toolbar */}
+        <div className="flex items-center gap-1">
+          <IconButton
+            onClick={() => setEditing(true)}
+            label="Edit question"
+            icon={<Pencil className="h-3.5 w-3.5" />}
+          />
+          <IconButton
+            onClick={handlePin}
+            disabled={pinning}
+            label={q._meta.pinned ? 'Unpin question' : 'Pin question'}
+            icon={
+              pinning ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : q._meta.pinned ? (
+                <PinOff className="h-3.5 w-3.5 text-amber-600" />
+              ) : (
+                <Pin className="h-3.5 w-3.5" />
+              )
+            }
+          />
+          <IconButton
+            onClick={handleDelete}
+            disabled={deleting}
+            label="Delete question"
+            icon={
+              deleting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )
+            }
+            className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+          />
+        </div>
       </div>
 
-      {/* Prompt */}
-      <p className="text-sm text-slate-900 font-medium mb-1">{q.prompt}</p>
+      {error && <p className="text-xs text-rose-600 mb-2">{error}</p>}
 
-      {/* Answer outline */}
+      {/* Prominent Question Prompt */}
+      <h3 className="text-sm sm:text-base font-semibold text-slate-900 leading-snug mb-3 tracking-tight">
+        {q.prompt}
+      </h3>
+
+      {/* Structured Answer Outline Section */}
       {q.answer_outline && (
-        <p className="text-sm text-slate-500 leading-relaxed">{q.answer_outline}</p>
+        <div className="bg-slate-50/70 rounded-lg p-3 border border-slate-100 text-xs sm:text-sm text-slate-700 leading-relaxed mb-3">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+            <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+            <span>Key Evaluation Points</span>
+          </div>
+          <p className="whitespace-pre-line text-slate-600 leading-relaxed">
+            {q.answer_outline}
+          </p>
+        </div>
       )}
 
       {/* Requirement links */}
       {q.requirement_ids?.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <span className="text-[11px] font-medium text-slate-400 mr-0.5">Covers:</span>
           {q.requirement_ids.map((id) => {
             const req = requirements.find((r) => r.id === id);
             return (
               <span
                 key={id}
-                className="text-xs text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded font-mono"
-                title={req?.text}
+                className="inline-flex items-center text-[10px] font-mono font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200/80 border border-slate-200/80 px-2 py-0.5 rounded transition-colors cursor-default"
+                title={req?.text || id}
               >
                 {id}
               </span>
@@ -288,42 +362,6 @@ function QuestionCard({ question: q, kitId, requirements, onUpdate }: QuestionCa
           })}
         </div>
       )}
-
-      {/* Action buttons */}
-      <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-        <IconButton
-          onClick={() => setEditing(true)}
-          label="Edit question"
-          icon={<Pencil className="h-3.5 w-3.5" />}
-        />
-        <IconButton
-          onClick={handlePin}
-          disabled={pinning}
-          label={q._meta.pinned ? 'Unpin question' : 'Pin question'}
-          icon={
-            pinning ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : q._meta.pinned ? (
-              <PinOff className="h-3.5 w-3.5" />
-            ) : (
-              <Pin className="h-3.5 w-3.5" />
-            )
-          }
-        />
-        <IconButton
-          onClick={handleDelete}
-          disabled={deleting}
-          label="Delete question"
-          icon={
-            deleting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Trash2 className="h-3.5 w-3.5" />
-            )
-          }
-          className="text-red-400 hover:text-red-600"
-        />
-      </div>
     </div>
   );
 }
@@ -347,8 +385,9 @@ function IconButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
+      title={label}
       className={clsx(
-        'p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-40',
+        'p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-40',
         className
       )}
     >
@@ -399,14 +438,22 @@ function EditQuestionForm({ question: q, kitId, requirements, onSaved, onCancel 
   };
 
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+    <div className="bg-blue-50/50 border border-blue-200 rounded-xl p-4 sm:p-5 space-y-4 shadow-xs">
+      <div className="flex items-center justify-between pb-2 border-b border-blue-100">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-blue-900">
+          Edit Question ({q.id})
+        </h4>
+        <span className="text-[11px] text-blue-700 font-medium">Changes will be marked as Edited</span>
+      </div>
+
       {error && (
-        <p className="text-xs text-red-600 mb-2" role="alert">
+        <p className="text-xs text-rose-600 font-medium" role="alert">
           {error}
         </p>
       )}
-      <div className="mb-3">
-        <label htmlFor={promptId} className="block text-xs font-medium text-slate-600 mb-1">
+
+      <div>
+        <label htmlFor={promptId} className="block text-xs font-medium text-slate-700 mb-1">
           Question
         </label>
         <textarea
@@ -414,11 +461,12 @@ function EditQuestionForm({ question: q, kitId, requirements, onSaved, onCancel 
           rows={3}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className="w-full text-sm rounded border border-slate-300 px-2.5 py-1.5 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+          className="w-full text-xs sm:text-sm rounded-lg border border-slate-200 bg-white p-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
         />
       </div>
-      <div className="mb-3">
-        <label htmlFor={outlineId} className="block text-xs font-medium text-slate-600 mb-1">
+
+      <div>
+        <label htmlFor={outlineId} className="block text-xs font-medium text-slate-700 mb-1">
           Answer Outline
         </label>
         <textarea
@@ -426,22 +474,31 @@ function EditQuestionForm({ question: q, kitId, requirements, onSaved, onCancel 
           rows={4}
           value={answerOutline}
           onChange={(e) => setAnswerOutline(e.target.value)}
-          className="w-full text-sm rounded border border-slate-300 px-2.5 py-1.5 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+          className="w-full text-xs sm:text-sm rounded-lg border border-slate-200 bg-white p-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
         />
       </div>
-      <div className="flex items-center gap-4 mb-3">
+
+      <div className="flex flex-wrap items-center gap-4">
         <fieldset>
-          <legend className="text-xs font-medium text-slate-600 mb-1">Difficulty</legend>
+          <legend className="text-xs font-medium text-slate-700 mb-1.5">Difficulty</legend>
           <div className="flex gap-2">
             {([1, 2, 3] as const).map((d) => (
-              <label key={d} className="flex items-center gap-1 text-sm cursor-pointer">
+              <label
+                key={d}
+                className={clsx(
+                  'flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium border cursor-pointer transition-colors',
+                  difficulty === d
+                    ? 'bg-blue-600 border-blue-600 text-white'
+                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                )}
+              >
                 <input
                   type="radio"
                   name={`difficulty-${q.id}`}
                   value={d}
                   checked={difficulty === d}
                   onChange={() => setDifficulty(d)}
-                  className="focus:ring-blue-500"
+                  className="sr-only"
                 />
                 {DIFFICULTY_LABELS[d]}
               </label>
@@ -449,12 +506,13 @@ function EditQuestionForm({ question: q, kitId, requirements, onSaved, onCancel 
           </div>
         </fieldset>
       </div>
-      <div className="flex gap-2">
+
+      <div className="flex items-center gap-2 pt-2">
         <button
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 transition-colors shadow-2xs"
         >
           {saving ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -466,7 +524,7 @@ function EditQuestionForm({ question: q, kitId, requirements, onSaved, onCancel 
         <button
           type="button"
           onClick={onCancel}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-300 rounded hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors focus:outline-none"
         >
           <X className="h-3.5 w-3.5" />
           Cancel
@@ -520,15 +578,20 @@ function AddQuestionForm({ category, kitId, requirements, onSaved, onCancel }: A
   };
 
   return (
-    <div className="bg-teal-50 border border-teal-200 rounded-lg px-4 py-3">
-      <p className="text-xs font-semibold text-teal-700 mb-3 uppercase tracking-wide">
-        New Custom Question
-      </p>
+    <div className="bg-teal-50/40 border border-teal-200 rounded-xl p-4 sm:p-5 space-y-4 shadow-xs">
+      <div className="flex items-center justify-between pb-2 border-b border-teal-100">
+        <h4 className="text-xs font-semibold text-teal-900 uppercase tracking-wider">
+          New Custom Question
+        </h4>
+        <span className="text-[11px] text-teal-700 font-medium">{CATEGORY_LABELS[category]}</span>
+      </div>
+
       {error && (
-        <p className="text-xs text-red-600 mb-2" role="alert">{error}</p>
+        <p className="text-xs text-rose-600 font-medium" role="alert">{error}</p>
       )}
-      <div className="mb-3">
-        <label htmlFor={promptId} className="block text-xs font-medium text-slate-600 mb-1">
+
+      <div>
+        <label htmlFor={promptId} className="block text-xs font-medium text-slate-700 mb-1">
           Question
         </label>
         <textarea
@@ -537,12 +600,13 @@ function AddQuestionForm({ category, kitId, requirements, onSaved, onCancel }: A
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Enter your question…"
-          className="w-full text-sm rounded border border-slate-300 px-2.5 py-1.5 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
+          className="w-full text-xs sm:text-sm rounded-lg border border-slate-200 bg-white p-3 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
           autoFocus
         />
       </div>
-      <div className="mb-3">
-        <label htmlFor={outlineId} className="block text-xs font-medium text-slate-600 mb-1">
+
+      <div>
+        <label htmlFor={outlineId} className="block text-xs font-medium text-slate-700 mb-1">
           Answer Outline <span className="text-slate-400 font-normal">(optional)</span>
         </label>
         <textarea
@@ -551,22 +615,31 @@ function AddQuestionForm({ category, kitId, requirements, onSaved, onCancel }: A
           value={answerOutline}
           onChange={(e) => setAnswerOutline(e.target.value)}
           placeholder="Key points to cover in the answer…"
-          className="w-full text-sm rounded border border-slate-300 px-2.5 py-1.5 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
+          className="w-full text-xs sm:text-sm rounded-lg border border-slate-200 bg-white p-3 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
         />
       </div>
-      <div className="flex items-center gap-4 mb-3">
+
+      <div className="flex flex-wrap items-center gap-4">
         <fieldset>
-          <legend className="text-xs font-medium text-slate-600 mb-1">Difficulty</legend>
+          <legend className="text-xs font-medium text-slate-700 mb-1.5">Difficulty</legend>
           <div className="flex gap-2">
             {([1, 2, 3] as const).map((d) => (
-              <label key={d} className="flex items-center gap-1 text-sm cursor-pointer">
+              <label
+                key={d}
+                className={clsx(
+                  'flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium border cursor-pointer transition-colors',
+                  difficulty === d
+                    ? 'bg-teal-600 border-teal-600 text-white'
+                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                )}
+              >
                 <input
                   type="radio"
                   name={`add-difficulty-${category}`}
                   value={d}
                   checked={difficulty === d}
                   onChange={() => setDifficulty(d)}
-                  className="focus:ring-teal-500"
+                  className="sr-only"
                 />
                 {DIFFICULTY_LABELS[d]}
               </label>
@@ -574,12 +647,13 @@ function AddQuestionForm({ category, kitId, requirements, onSaved, onCancel }: A
           </div>
         </fieldset>
       </div>
-      <div className="flex gap-2">
+
+      <div className="flex items-center gap-2 pt-2">
         <button
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-teal-600 rounded hover:bg-teal-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
         >
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
           Add Question
@@ -587,7 +661,7 @@ function AddQuestionForm({ category, kitId, requirements, onSaved, onCancel }: A
         <button
           type="button"
           onClick={onCancel}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-300 rounded hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors focus:outline-none"
         >
           <X className="h-3.5 w-3.5" /> Cancel
         </button>

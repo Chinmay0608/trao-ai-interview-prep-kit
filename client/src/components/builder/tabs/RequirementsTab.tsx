@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { BuilderViewModel, InternalRequirement } from '@trao/shared';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Check, CircleDot } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RequirementsTabProps {
@@ -16,32 +16,78 @@ export function RequirementsTab({ kit }: RequirementsTabProps) {
   const must = requirements.filter((r) => r.priority === 'must');
   const nice = requirements.filter((r) => r.priority === 'nice');
 
+  const mustCoveredCount = must.filter((r) => !uncoveredIds.has(r.id)).length;
+  const mustPercentage = must.length > 0 ? Math.round((mustCoveredCount / must.length) * 100) : 100;
+
   if (requirements.length === 0) {
     return (
-      <p className="text-sm text-slate-400 py-8 text-center">
-        Requirements will appear after the kit is generated.
-      </p>
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-12 text-center shadow-xs">
+        <p className="text-sm text-slate-500">
+          Requirements will appear after the kit is generated.
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Top Coverage Summary Banner */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Must-Have Requirement Coverage</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {mustCoveredCount} / {must.length} must-have requirements covered ({mustPercentage}%)
+            </p>
+          </div>
+          <span
+            className={clsx(
+              'text-xs font-bold px-3 py-1 rounded-full border self-start sm:self-auto',
+              mustPercentage >= 100
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
+                : mustPercentage >= 70
+                ? 'bg-amber-50 text-amber-700 border-amber-200/60'
+                : 'bg-rose-50 text-rose-700 border-rose-200/60'
+            )}
+          >
+            {mustCoveredCount} of {must.length} Covered
+          </span>
+        </div>
+
+        {/* Compact progress bar */}
+        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className={clsx(
+              'h-full rounded-full transition-all duration-500',
+              mustPercentage >= 100 ? 'bg-emerald-500' : mustPercentage >= 70 ? 'bg-amber-400' : 'bg-rose-500'
+            )}
+            style={{ width: `${mustPercentage}%` }}
+            role="progressbar"
+            aria-valuenow={mustPercentage}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Must-have coverage: ${mustPercentage}%`}
+          />
+        </div>
+      </div>
+
+      {/* Must-Have Group */}
       <RequirementGroup
-        label="Must-have"
+        label="Must-Have Requirements"
+        priorityTag="MUST-HAVE"
         items={must}
         uncoveredIds={uncoveredIds}
         kit={kit}
-        colorClass="text-red-500"
-        badgeClass="bg-red-50 text-red-600 border-red-200"
       />
+
+      {/* Nice-to-Have Group */}
       {nice.length > 0 && (
         <RequirementGroup
-          label="Nice-to-have"
+          label="Nice-to-Have Requirements"
+          priorityTag="NICE-TO-HAVE"
           items={nice}
           uncoveredIds={uncoveredIds}
           kit={kit}
-          colorClass="text-blue-500"
-          badgeClass="bg-blue-50 text-blue-600 border-blue-200"
         />
       )}
     </div>
@@ -50,33 +96,33 @@ export function RequirementsTab({ kit }: RequirementsTabProps) {
 
 function RequirementGroup({
   label,
+  priorityTag,
   items,
   uncoveredIds,
   kit,
-  colorClass,
-  badgeClass,
 }: {
   label: string;
+  priorityTag: 'MUST-HAVE' | 'NICE-TO-HAVE';
   items: InternalRequirement[];
   uncoveredIds: Set<string>;
   kit: BuilderViewModel;
-  colorClass: string;
-  badgeClass: string;
 }) {
   if (items.length === 0) return null;
   const covered = items.filter((r) => !uncoveredIds.has(r.id)).length;
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-sm font-semibold text-slate-900">{label}</h2>
-        <span
-          className={clsx('text-xs font-medium px-2 py-0.5 rounded-full border', badgeClass)}
-        >
+    <div className="space-y-3">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700">{label}</h3>
+          <span className="text-xs text-slate-400">({items.length})</span>
+        </div>
+        <span className="text-xs font-medium text-slate-500">
           {covered}/{items.length} covered
         </span>
       </div>
-      <div className="space-y-2">
+
+      <div className="space-y-3">
         {items.map((req) => {
           const isCovered = !uncoveredIds.has(req.id);
           const linkedQs = kit.questions?.filter((q) =>
@@ -87,47 +133,62 @@ function RequirementGroup({
             <div
               key={req.id}
               className={clsx(
-                'bg-white rounded-lg border px-4 py-3',
-                isCovered ? 'border-slate-200' : 'border-amber-200 bg-amber-50'
+                'bg-white rounded-xl border p-4 sm:p-5 transition-all shadow-2xs',
+                isCovered ? 'border-slate-200/90' : 'border-amber-200/90 bg-amber-50/30'
               )}
             >
-              <div className="flex items-start gap-2">
-                {isCovered ? (
-                  <CheckCircle2
-                    className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0"
-                    aria-label="Covered"
-                  />
-                ) : (
-                  <XCircle
-                    className="h-4 w-4 text-amber-500 mt-0.5 shrink-0"
-                    aria-label="Uncovered"
-                  />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                    <span className="text-xs font-mono text-slate-400">{req.id}</span>
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-2 flex-1 min-w-0">
+                  {/* Badges Row */}
+                  <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={clsx(
-                        'text-xs font-medium px-1.5 py-0.5 rounded border',
+                        'px-2 py-0.5 rounded text-[10px] font-bold tracking-wide border',
+                        priorityTag === 'MUST-HAVE'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200/60'
+                          : 'bg-blue-50 text-blue-700 border-blue-200/60'
+                      )}
+                    >
+                      {priorityTag}
+                    </span>
+
+                    <span
+                      className={clsx(
+                        'px-2 py-0.5 rounded text-[11px] font-medium border capitalize',
                         req.kind === 'technical'
-                          ? 'bg-purple-50 text-purple-600 border-purple-200'
+                          ? 'bg-purple-50 text-purple-700 border-purple-200/60'
                           : req.kind === 'behavioural'
-                          ? 'bg-teal-50 text-teal-600 border-teal-200'
-                          : 'bg-slate-50 text-slate-600 border-slate-200'
+                          ? 'bg-teal-50 text-teal-700 border-teal-200/60'
+                          : 'bg-slate-50 text-slate-700 border-slate-200/60'
                       )}
                     >
                       {req.kind}
                     </span>
-                    {!isCovered && (
-                      <span className="text-xs text-amber-600 font-medium">Uncovered</span>
+
+                    <span className="text-[11px] font-mono text-slate-400 select-none">
+                      {req.id}
+                    </span>
+                  </div>
+
+                  {/* Requirement Text */}
+                  <p className="text-xs sm:text-sm font-medium text-slate-900 leading-relaxed">
+                    {req.text}
+                  </p>
+
+                  {/* Coverage Status Row */}
+                  <div className="flex items-center gap-2 text-xs pt-0.5">
+                    {isCovered ? (
+                      <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" aria-label="Covered" />
+                        <span>Covered · {linkedQs.length} question{linkedQs.length !== 1 ? 's' : ''} linked</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-amber-700 font-medium">
+                        <CircleDot className="h-3.5 w-3.5 text-amber-600" aria-label="Uncovered" />
+                        <span>Uncovered (no questions currently address this requirement)</span>
+                      </div>
                     )}
                   </div>
-                  <p className="text-sm text-slate-800">{req.text}</p>
-                  {linkedQs.length > 0 && (
-                    <p className="text-xs text-slate-400 mt-1">
-                      {linkedQs.length} question{linkedQs.length !== 1 ? 's' : ''} linked
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
