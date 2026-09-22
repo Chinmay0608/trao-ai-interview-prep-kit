@@ -76,7 +76,7 @@ export function createDefaultPipelineOptions(): PipelineOptions {
           process.env.GROQ_MODEL ||
           (process.env.LLM_MODEL && !process.env.LLM_MODEL.includes('gemini')
             ? process.env.LLM_MODEL
-            : 'llama-3.3-70b-versatile');
+            : 'openai/gpt-oss-120b');
         cachedLLMProvider = new GroqLLMProvider({ apiKey: groqKey!.trim(), defaultModel: model });
       } else {
         if (isProd) {
@@ -90,7 +90,7 @@ export function createDefaultPipelineOptions(): PipelineOptions {
       cachedLLMProvider = new GeminiLLMProvider({ apiKey: geminiKey!.trim(), defaultModel: process.env.LLM_MODEL });
     } else if (isGroqValid) {
       console.log('[server] Initialized Groq LLM provider.');
-      const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+      const model = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
       cachedLLMProvider = new GroqLLMProvider({ apiKey: groqKey!.trim(), defaultModel: model });
     } else {
       if (isProd) {
