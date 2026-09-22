@@ -46,7 +46,17 @@ export function parseCliArgs(args: string[]): CliArgs {
 }
 
 export async function runCli(argv: string[] = process.argv.slice(2)): Promise<number> {
-  const { inputPath, outputPath, isLive } = parseCliArgs(argv);
+  let { inputPath, outputPath, isLive } = parseCliArgs(argv);
+
+  // If no flags provided at all, fall back to default paths
+  if (argv.length === 0) {
+    if (fs.existsSync(path.resolve(process.cwd(), 'cases.json'))) {
+      inputPath = 'cases.json';
+    } else if (fs.existsSync(path.resolve(process.cwd(), 'tests/evaluation/fixtures/sample-cases.json'))) {
+      inputPath = 'tests/evaluation/fixtures/sample-cases.json';
+    }
+    outputPath = 'kits.json';
+  }
 
   if (!inputPath || !outputPath) {
     console.error('Usage: npm run evaluate -- --input <cases.json> --output <kits.json> [--live]');
@@ -64,7 +74,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<nu
   let rawCases: unknown[];
   try {
     const rawContent = fs.readFileSync(resolvedInput, 'utf-8');
-    rawCases = JSON.parse(rawContent);
+    rawCases = JSON.parse(rawContent.replace(/^\uFEFF/, ''));
   } catch (err: any) {
     console.error(`Error: Failed to parse input JSON: ${err.message}`);
     return 1;
