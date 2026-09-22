@@ -19,6 +19,7 @@ import {
   resolveDuckDuckGoUrl,
 } from '../server/src/providers/research/DuckDuckGoHtmlSearchProvider.js';
 import { TavilySearchProvider } from '../server/src/providers/research/TavilySearchProvider.js';
+import { GroqLLMProvider } from '../server/src/providers/llm/GroqLLMProvider.js';
 
 describe('Phase 3: External Providers & Contracts', () => {
   describe('LLM Provider & Retry Engine', () => {
@@ -397,6 +398,22 @@ describe('Phase 3: External Providers & Contracts', () => {
       expect(results[0].url).toBe('https://test.com/interview');
       expect(mock.callCount).toBe(1);
       expect(mock.lastQuery?.companyName).toBe('Acme');
+    });
+
+    it('24. GroqLLMProvider validates API key and sets providerName to groq', () => {
+      expect(() => new GroqLLMProvider({ apiKey: '' })).toThrow();
+
+      const groq = new GroqLLMProvider({ apiKey: 'gsk_mock_test_key_123456789' });
+      expect(groq.providerName).toBe('groq');
+    });
+
+    it('25. GroqLLMProvider accepts custom model configuration', () => {
+      const groq = new GroqLLMProvider({
+        apiKey: 'gsk_mock_test_key_123456789',
+        defaultModel: 'llama-3.1-8b-instant',
+        rateLimitRpm: 60,
+      });
+      expect(groq.providerName).toBe('groq');
     });
   });
 });

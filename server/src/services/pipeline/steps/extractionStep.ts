@@ -23,12 +23,14 @@ export async function executeExtractionStep(
 Your task is to analyze the provided Job Description and extract:
 1. Role title and seniority level (Junior, Mid-Level, Senior, Staff, Lead, Principal, etc.)
 2. Key responsibilities explicitly mentioned in the text.
-3. Requirements:
-   - Priority: mark as "must" if mandatory/required/essential. Mark as "nice" if preferred/bonus/plus.
-   - Kind: "technical" (languages, frameworks, systems), "behavioural" (communication, mentoring, teamwork), or "domain" (finance, healthcare, compliance).
-   - evidenceText: MUST be a verbatim quote (exact substring or sentence) from the Job Description proving that this requirement exists.
+3. Requirements list, where each requirement item MUST have:
+   - "text": the requirement statement (e.g. "5+ years React experience")
+   - "priority": mark as "must" if mandatory/required/essential, or "nice" if preferred/bonus/plus
+   - "kind": "technical" (languages, frameworks, systems), "behavioural" (communication, mentoring, teamwork), or "domain" (finance, healthcare, compliance)
+   - "evidenceText": MUST be a verbatim quote (exact substring or sentence) from the Job Description proving that this requirement exists
 
 CRITICAL RULES:
+- The property name for each requirement is "text" and the evidence quote property is "evidenceText".
 - DO NOT invent, hallucinate, or extrapolate requirements not explicitly stated in the text.
 - If the job description is a short 2-line stub, extract ONLY the requirements directly mentioned. An honest short list is required.
 - Provide JSON strictly matching the requested schema.`;

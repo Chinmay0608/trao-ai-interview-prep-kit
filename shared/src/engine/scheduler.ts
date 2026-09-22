@@ -221,7 +221,7 @@ export function allocateSchedule(
 /**
  * Deterministically generates a focus string based on day position and questions.
  */
-function determineDayFocus(
+export function determineDayFocus(
   day: number,
   daysAvailable: number,
   dayQuestions: Question[]
@@ -231,7 +231,7 @@ function determineDayFocus(
   }
 
   if (day === daysAvailable && daysAvailable >= 3) {
-    return 'Full Mock Simulation & Final Synthesis';
+    return 'Final Review & Synthesis';
   }
 
   // Category counts
@@ -243,26 +243,49 @@ function determineDayFocus(
   };
 
   for (const q of dayQuestions) {
-    counts[q.category]++;
+    if (counts[q.category] !== undefined) {
+      counts[q.category]++;
+    }
   }
 
-  if (counts['system-design'] >= counts.technical && counts['system-design'] > 0) {
+  const total = dayQuestions.length;
+
+  // 1. Purely behavioural day
+  if (counts.behavioural === total && total > 0) {
+    return 'Behavioural & Team Collaboration';
+  }
+
+  // 2. Purely system design
+  if (counts['system-design'] === total && total > 0) {
     return 'System Architecture & Distributed Design';
   }
 
-  if (counts.technical >= counts.behavioural && counts.technical > 0) {
-    return day <= 2 ? 'Core Technical Must-Haves & Architecture' : 'Technical Deep-Dives & Practical Scenarios';
+  // 3. Purely company fit
+  if (counts['company-fit'] === total && total > 0) {
+    return 'Company & Role Preparation';
   }
 
-  if (counts.behavioural > 0) {
-    return 'Leadership, Mentorship & Behavioural Mastery';
+  // 4. Mixed technical and behavioural
+  if ((counts.technical > 0 || counts['system-design'] > 0) && counts.behavioural > 0) {
+    return 'Technical Foundations & Collaboration';
   }
 
+  // 5. System design predominant
+  if (counts['system-design'] > counts.technical && counts['system-design'] > 0) {
+    return 'System Architecture & Distributed Design';
+  }
+
+  // 6. Purely or predominantly technical
+  if (counts.technical > 0) {
+    return day <= 2 ? 'Core Technical Foundations' : 'Programming & Practical Problem Solving';
+  }
+
+  // 7. Company fit mixed
   if (counts['company-fit'] > 0) {
-    return 'Company Alignment, Values & Cultural Readiness';
+    return 'Company & Role Preparation';
   }
 
-  return 'Spaced Active Recall & Core Competency Drill';
+  return 'Core Competency Review & Practice';
 }
 
 /**

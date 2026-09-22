@@ -27,6 +27,11 @@ import { executeBriefStep } from './steps/briefStep.js';
 import { executeQuestionGenerationStep } from './steps/questionStep.js';
 import { executeGapGenerationStep } from './steps/gapStep.js';
 import { executeFlashcardStep } from './steps/flashcardStep.js';
+import {
+  validateQuestionBank,
+  regenerateSingleInvalidQuestion,
+  createDeterministicFallbackQuestion,
+} from './questionValidator.js';
 
 const TOTAL_PIPELINE_STEPS = 12;
 
@@ -189,6 +194,44 @@ export async function runPrepKitPipeline(
   }
 
   // =========================================================================
+  // Step 7b: Targeted Question Validation & Corrective Regeneration
+  // =========================================================================
+  const MAX_CORRECTIVE_ATTEMPTS = 2;
+  let validation = validateQuestionBank(candidateQuestions, extraction.requirements);
+
+  for (let attempt = 1; attempt <= MAX_CORRECTIVE_ATTEMPTS && validation.invalid.length > 0; attempt++) {
+    const fixedMap = new Map<string, Question>();
+    for (const item of validation.invalid) {
+      try {
+        const fixedQ = await regenerateSingleInvalidQuestion(
+          item.question,
+          item.reasons,
+          extraction.requirements,
+          extraction.roleTitle,
+          extraction.seniority,
+          options.llmProvider
+        );
+        fixedMap.set(fixedQ.id, fixedQ);
+      } catch {
+        // Fallback handles if regeneration call fails
+      }
+    }
+
+    candidateQuestions = candidateQuestions.map((q) => (fixedMap.has(q.id) ? fixedMap.get(q.id)! : q));
+    validation = validateQuestionBank(candidateQuestions, extraction.requirements);
+  }
+
+  // Deterministic fallback if any questions remain invalid after 2 corrective attempts
+  if (validation.invalid.length > 0) {
+    const fallbackMap = new Map<string, Question>();
+    for (const item of validation.invalid) {
+      const fallbackQ = createDeterministicFallbackQuestion(item.question, extraction.requirements);
+      fallbackMap.set(fallbackQ.id, fallbackQ);
+    }
+    candidateQuestions = candidateQuestions.map((q) => (fallbackMap.has(q.id) ? fallbackMap.get(q.id)! : q));
+  }
+
+  // =========================================================================
   // Step 8: Deterministic Coverage Re-Check
   // =========================================================================
   const finalCoverage = calculateCoverage(candidateQuestions, extraction.requirements);
@@ -263,10 +306,15 @@ export async function runPrepKitPipeline(
   }));
 
   const internalFlashcards: InternalFlashcard[] = flashcards.map((f) => ({
-    ...f,
+    id: f.id,
+    front: f.front,
+    back: f.back,
+    requirement_ids: f.requirement_ids,
     _meta: {
       origin: 'generated',
       pinned: false,
+      sourceQuestionId: f.sourceQuestionId,
+      targetRequirementId: f.targetRequirementId,
     },
   }));
 
@@ -291,6 +339,7 @@ export async function runPrepKitPipeline(
     flashcards: internalFlashcards,
     schedule,
     coverage: finalCoverage.toAppendixACoverage(passes),
+    crawlMetrics: crawlResult.metrics,
   };
 
   // Strictly serialize through serializeToAppendixA() to guarantee Appendix A compliance

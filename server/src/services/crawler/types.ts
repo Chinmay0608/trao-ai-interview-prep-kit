@@ -35,11 +35,21 @@ export interface SkippedSource {
   reason: string;
 }
 
+export interface CrawlMetrics {
+  pagesAttempted: number;
+  pagesSucceeded: number;
+  pagesFailed: number;
+  pagesSkipped: number;
+  blockedByRobots: number;
+  statusMessage?: string;
+}
+
 export interface CrawlResult {
   pages: CrawlPageResult[];
   pagesUsed: string[];
   skippedSources: SkippedSource[];
   hiringEvidenceFound: boolean;
+  metrics: CrawlMetrics;
 }
 
 export interface SafeHttpResponse {

@@ -1,8 +1,11 @@
+import path from 'path';
 import dotenv from 'dotenv';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+
 import { createApp } from './app.js';
 import { connectDb } from './db/connection.js';
-
-dotenv.config();
 
 const app = createApp();
 const PORT = process.env.PORT || 5000;

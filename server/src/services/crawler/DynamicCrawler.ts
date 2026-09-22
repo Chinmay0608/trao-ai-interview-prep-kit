@@ -79,6 +79,12 @@ export class DynamicCrawler {
     const skippedSources: SkippedSource[] = [];
     let hiringEvidenceFound = false;
 
+    let pagesAttempted = 0;
+    let pagesSucceeded = 0;
+    let pagesFailed = 0;
+    let pagesSkipped = 0;
+    let blockedByRobots = 0;
+
     // Step 1: Validate and establish base domain
     let baseOrigin: string;
     let baseHost: string;
@@ -91,7 +97,20 @@ export class DynamicCrawler {
       baseHost = parsed.hostname.toLowerCase();
     } catch (err: any) {
       skippedSources.push({ url: initialCompanyUrl, reason: err.message });
-      return { pages, pagesUsed, skippedSources, hiringEvidenceFound };
+      return {
+        pages,
+        pagesUsed,
+        skippedSources,
+        hiringEvidenceFound,
+        metrics: {
+          pagesAttempted: 0,
+          pagesSucceeded: 0,
+          pagesFailed: 1,
+          pagesSkipped: 0,
+          blockedByRobots: 0,
+          statusMessage: 'Invalid company URL structure.',
+        },
+      };
     }
 
     const queue = new UrlQueue();
@@ -120,13 +139,17 @@ export class DynamicCrawler {
       const currentUrl = currentItem.url;
 
       if (visitedUrls.has(currentUrl)) {
+        pagesSkipped++;
         continue;
       }
       visitedUrls.add(currentUrl);
+      pagesAttempted++;
 
       // Check robots.txt permissions
       const isAllowedByRobots = await this.robotsHandler.isAllowed(currentUrl);
       if (!isAllowedByRobots) {
+        blockedByRobots++;
+        pagesSkipped++;
         skippedSources.push({ url: currentUrl, reason: 'Disallowed by robots.txt' });
         continue;
       }
@@ -149,6 +172,7 @@ export class DynamicCrawler {
           maxRedirects: this.budget.maxRedirects,
         });
       } catch (fetchErr: any) {
+        pagesFailed++;
         skippedSources.push({
           url: currentUrl,
           reason: fetchErr.message || 'Fetch failed',
@@ -158,6 +182,7 @@ export class DynamicCrawler {
 
       const finalUrl = response.finalUrl;
       pagesUsed.push(finalUrl);
+      pagesSucceeded++;
 
       // Parse HTML
       const $ = cheerio.load(response.body);
@@ -206,11 +231,30 @@ export class DynamicCrawler {
       }
     }
 
+    let statusMessage: string;
+    if (pagesSucceeded > 0) {
+      statusMessage = `Crawl completed: ${pagesSucceeded} page${pagesSucceeded > 1 ? 's' : ''} successfully indexed.`;
+    } else if (blockedByRobots > 0) {
+      statusMessage = 'Some pages were unavailable due to site access restrictions. No unsupported company facts were fabricated.';
+    } else if (pagesFailed > 0) {
+      statusMessage = 'External website was unreachable or returned no extractable text. The kit continues using only verified available evidence.';
+    } else {
+      statusMessage = 'Limited public company information was found during research.';
+    }
+
     return {
       pages,
       pagesUsed: Array.from(new Set(pagesUsed)),
       skippedSources,
       hiringEvidenceFound,
+      metrics: {
+        pagesAttempted,
+        pagesSucceeded,
+        pagesFailed,
+        pagesSkipped,
+        blockedByRobots,
+        statusMessage,
+      },
     };
   }
 

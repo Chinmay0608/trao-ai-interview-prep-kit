@@ -199,13 +199,28 @@ Regenerate ${countToGenerate} questions for category "${targetCategory}".`;
     if (gaps.length > 0) {
       // Create targeted questions closing uncovered must-haves
       for (const gap of gaps) {
+        let promptText: string;
+        let category: QuestionCategory;
+        const cleanGapText = gap.text.replace(/^core competency in\s+/i, '').replace(/^proven\s+/i, '').replace(/^experience with\s+/i, '');
+
+        if (gap.kind === 'behavioural') {
+          category = 'behavioural';
+          promptText = `Tell me about a project or team experience where you demonstrated ${cleanGapText.toLowerCase()}. What specific actions did you take, and how did you measure success?`;
+        } else if (gap.kind === 'domain') {
+          category = 'company-fit';
+          promptText = `How have you applied knowledge of ${cleanGapText.toLowerCase()} in your work? What domain-specific trade-offs or constraints did you encounter?`;
+        } else {
+          category = targetCategory === 'system-design' || targetCategory === 'technical' ? targetCategory : 'technical';
+          promptText = `Describe your practical approach to ${cleanGapText.toLowerCase()} in a production environment. What technical trade-offs, testing strategies, and edge cases do you consider?`;
+        }
+
         combinedQuestions.push({
           id: generateQuestionId(),
           requirement_ids: [gap.id],
-          category: targetCategory,
-          prompt: `In-depth technical scenario regarding ${gap.text}. How would you architect this system?`,
-          answer_outline: 'Key patterns, edge cases, error handling, and reliability.',
-          difficulty: 3,
+          category,
+          prompt: promptText,
+          answer_outline: 'Candidate should outline clear practical context, technical trade-offs, edge cases, error handling, and concrete impact.',
+          difficulty: 2,
           _meta: {
             origin: 'generated',
             pinned: false,

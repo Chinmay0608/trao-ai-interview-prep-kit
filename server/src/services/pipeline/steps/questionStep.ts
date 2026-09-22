@@ -15,17 +15,23 @@ export async function executeQuestionGenerationStep(
     .join('\n');
 
   const systemPrompt = `You are a Principal Hiring Architect generating an interview question bank.
-Your task is to generate realistic, in-depth interview questions across four categories:
-1. "technical": Core coding, architecture, languages, algorithms, data structures.
-2. "system-design": High-scale distributed systems, latency, storage, database partitioning, API design.
-3. "behavioural": Leadership, mentorship, cross-team conflict, ambiguous specifications, STAR format questions.
-4. "company-fit": Company alignment, domain problem solving, motivations.
+Your task is to generate realistic, natural interview questions across four categories:
+1. "technical": project walkthroughs, debugging scenarios, programming fundamentals, implementation decisions, testing, trade-offs, practical coding patterns (reserve architecture for high-scale distributed systems requirements).
+2. "system-design": high-scale distributed systems, latency, storage, database partitioning, API design.
+3. "behavioural": STAR-style experience, teamwork, receiving/giving feedback, handling disagreement, learning unfamiliar technology, ownership, communication.
+4. "company-fit": company alignment, domain problem solving, mission motivation, practical constraints.
 
-CRITICAL RULES:
+CRITICAL QUALITY RULES:
+- Requirements are BACKGROUND CONTEXT, NOT text to copy or quote into the question prompt.
+- NEVER mechanically paste requirement text into questions. DO NOT write questions like:
+  "Explain your experience and approach to <requirement text>" or "In-depth technical scenario regarding <requirement text>. How would you architect this system?".
+- Questions must sound like real human interview questions: grammatically natural, conversational, directly testing candidate competency.
+- Behavioural requirements (e.g. teamwork, feedback, communication) must produce natural behavioural/STAR questions (e.g. "Tell me about a time you received critical feedback from a teammate..."), NEVER ungrounded distributed architecture questions.
 - Every question MUST reference at least one valid Requirement ID (e.g. ["r1"]) from the provided list.
-- A requirement like "5+ years React" must lead to technical questions, while "Mentoring juniors" leads to behavioural questions.
+- DO NOT leak internal IDs like "r1" or "[ID: r1]" into the question text.
 - difficulty MUST be an integer: 1 (Fundamental), 2 (Intermediate/Applied), or 3 (Advanced/Architectural).
-- answer_outline MUST provide concise, structured evaluation criteria for the interviewer.`;
+- answer_outline MUST provide concise, structured evaluation criteria for the interviewer.
+- Return a JSON object with this shape: { "questions": [ { "category": "technical"|"system-design"|"behavioural"|"company-fit", "prompt": string, "answer_outline": string, "difficulty": 1|2|3, "requirement_ids": string[] } ] }`;
 
   const prompt = `Generate an interview question bank for a ${seniority} ${roleTitle}.
 

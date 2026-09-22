@@ -7,6 +7,7 @@ import { BatchEvaluator } from './batchEvaluator.js';
 import { MockLLMProvider } from '../providers/mocks/MockLLMProvider.js';
 import { MockResearchProvider } from '../providers/mocks/MockResearchProvider.js';
 import { GeminiLLMProvider } from '../providers/llm/GeminiLLMProvider.js';
+import { GroqLLMProvider } from '../providers/llm/GroqLLMProvider.js';
 import { DuckDuckGoHtmlSearchProvider } from '../providers/research/DuckDuckGoHtmlSearchProvider.js';
 
 // Load environment variables from .env
@@ -82,12 +83,23 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<nu
   let researchProvider: ResearchProvider;
 
   if (isLive) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error('Error: GEMINI_API_KEY environment variable is required for live mode.');
-      return 1;
+    const groqKey = process.env.GROQ_API_KEY || process.env.GROQ_API_KEY_2;
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.LLM_API_KEY;
+    const providerType = (process.env.LLM_PROVIDER || '').trim().toLowerCase();
+
+    if (providerType === 'groq' || (groqKey && !geminiKey)) {
+      if (!groqKey) {
+        console.error('Error: GROQ_API_KEY or GROQ_API_KEY_2 environment variable is required for live mode with Groq.');
+        return 1;
+      }
+      llmProvider = new GroqLLMProvider({ apiKey: groqKey, defaultModel: process.env.GROQ_MODEL });
+    } else {
+      if (!geminiKey) {
+        console.error('Error: GEMINI_API_KEY or GROQ_API_KEY environment variable is required for live mode.');
+        return 1;
+      }
+      llmProvider = new GeminiLLMProvider({ apiKey: geminiKey });
     }
-    llmProvider = new GeminiLLMProvider({ apiKey });
     researchProvider = new DuckDuckGoHtmlSearchProvider();
   } else {
     const mockLlm = new MockLLMProvider();

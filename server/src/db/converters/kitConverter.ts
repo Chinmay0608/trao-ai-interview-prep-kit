@@ -31,6 +31,7 @@ export function toBuilderViewModel(
   return {
     id: kitDoc._id.toString(),
     userId: kitDoc.userId.toString(),
+    status: kitDoc.status,
     generationVersion: kitDoc.generationVersion,
     activeJobId,
     createdAt: kitDoc.createdAt.toISOString(),
@@ -65,6 +66,7 @@ export function toBuilderViewModel(
       uncovered_requirement_ids: [],
       passes: 0,
     },
+    crawlMetrics: internalKit?.crawlMetrics,
   };
 }
 

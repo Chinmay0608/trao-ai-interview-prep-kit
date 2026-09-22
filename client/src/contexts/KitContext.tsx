@@ -107,7 +107,7 @@ function viewModelToListItem(vm: BuilderViewModel): KitListItem {
   const ik = vm as any;
   return {
     id: vm.id,
-    status: ik.status ?? 'ready',
+    status: vm.status ?? ik.status ?? 'ready',
     jobDescription: ik.jobDescription ?? '',
     companyUrl: vm.source?.company_url ?? '',
     daysAvailable: vm.schedule?.days_available ?? 0,
@@ -115,8 +115,8 @@ function viewModelToListItem(vm: BuilderViewModel): KitListItem {
     activeJobId: vm.activeJobId,
     updatedAt: vm.updatedAt,
     createdAt: vm.createdAt,
-    role: vm.role?.title,
-    company: vm.source?.company,
+    role: vm.role?.title?.trim() || undefined,
+    company: vm.source?.company?.trim() || undefined,
   };
 }
 

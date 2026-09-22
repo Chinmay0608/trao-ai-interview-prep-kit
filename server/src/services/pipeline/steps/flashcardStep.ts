@@ -1,11 +1,16 @@
 import { LLMProvider, Question, Requirement, Flashcard, generateQuestionId } from '@trao/shared';
 import { FlashcardsOutputSchema, FlashcardsOutputType } from '../schemas.js';
 
+export interface FlashcardWithSource extends Flashcard {
+  sourceQuestionId?: string;
+  targetRequirementId?: string;
+}
+
 export async function executeFlashcardStep(
   finalQuestions: Question[],
   requirements: Requirement[],
   llmProvider: LLMProvider
-): Promise<Flashcard[]> {
+): Promise<FlashcardWithSource[]> {
   if (finalQuestions.length === 0) {
     return [];
   }
@@ -23,6 +28,7 @@ Your task is to generate concise, high-impact flashcards based on the finalized 
 - "front": A clear, sharp question or technical/behavioural concept prompt.
 - "back": A concise, bulleted or direct answer outline highlighting core principles.
 - "requirement_ids": Array of requirement IDs covered by this flashcard (must match provided requirements).
+- "question_id": The Question ID from the input questions that this flashcard is based on.
 
 CRITICAL RULES:
 - Flashcards must be rapid to review (front < 30 words, back < 80 words).
@@ -50,11 +56,13 @@ ${questionContext}
       front: q.prompt,
       back: q.answer_outline,
       requirement_ids: [...q.requirement_ids],
+      sourceQuestionId: q.id,
+      targetRequirementId: q.requirement_ids[0],
     }));
   }
 
   const validReqIds = new Set(requirements.map((r) => r.id));
-  const flashcards: Flashcard[] = [];
+  const flashcards: FlashcardWithSource[] = [];
 
   for (const card of output.flashcards) {
     const validLinkedReqs = card.requirement_ids.filter((id) => validReqIds.has(id));
@@ -63,11 +71,25 @@ ${questionContext}
       validLinkedReqs.push(requirements[0]?.id || 'r1');
     }
 
+    let sourceQuestionId: string | undefined;
+    if (card.question_id && finalQuestions.some((q) => q.id === card.question_id)) {
+      sourceQuestionId = card.question_id;
+    } else {
+      const matchingQ = finalQuestions.find((q) =>
+        q.requirement_ids.some((rId) => validLinkedReqs.includes(rId))
+      );
+      if (matchingQ) {
+        sourceQuestionId = matchingQ.id;
+      }
+    }
+
     flashcards.push({
       id: generateQuestionId().replace('q_', 'f_'),
       front: card.front.trim(),
       back: card.back.trim(),
       requirement_ids: validLinkedReqs,
+      sourceQuestionId,
+      targetRequirementId: validLinkedReqs[0],
     });
   }
 

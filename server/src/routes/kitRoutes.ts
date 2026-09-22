@@ -1,4 +1,9 @@
+import path from 'path';
+import dotenv from 'dotenv';
 import { Router, Request, Response, NextFunction } from 'express';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 import { z } from 'zod';
 import mongoose from 'mongoose';
 import {
@@ -19,18 +24,71 @@ import { KitNotFoundError, UnknownQuestionIdError } from '../services/jobs/error
 import { Kit } from '../db/models/Kit.js';
 import { toBuilderViewModel } from '../db/converters/kitConverter.js';
 import { GeminiLLMProvider } from '../providers/llm/GeminiLLMProvider.js';
+import { GroqLLMProvider } from '../providers/llm/GroqLLMProvider.js';
 import { DuckDuckGoHtmlSearchProvider } from '../providers/research/DuckDuckGoHtmlSearchProvider.js';
 import { DynamicCrawler } from '../services/crawler/DynamicCrawler.js';
 import { PipelineOptions } from '../services/pipeline/types.js';
+
+import { createDevMockLLMProvider } from '../providers/mocks/createDevMockLLMProvider.js';
 
 const router = Router();
 const jobService = new GenerationJobService();
 const runner = new GenerationRunner(jobService);
 
+function isValidApiKey(key?: string): boolean {
+  if (!key) return false;
+  const trimmed = key.trim();
+  if (
+    trimmed === '' ||
+    trimmed === 'dev_key' ||
+    trimmed === 'your_gemini_api_key_here' ||
+    trimmed.startsWith('your_') ||
+    trimmed.length < 15
+  ) {
+    return false;
+  }
+  return true;
+}
+
 // Default pipeline options factory
 export function createDefaultPipelineOptions(): PipelineOptions {
-  const apiKey = process.env.LLM_API_KEY || process.env.GEMINI_API_KEY || 'dev_key';
-  const llmProvider: LLMProvider = new GeminiLLMProvider({ apiKey });
+  const groqKey = process.env.GROQ_API_KEY || process.env.GROQ_API_KEY_2;
+  const geminiKey = process.env.LLM_API_KEY || process.env.GEMINI_API_KEY;
+  const providerType = (process.env.LLM_PROVIDER || '').trim().toLowerCase();
+
+  const isGroqValid = isValidApiKey(groqKey);
+  const isGeminiValid = isValidApiKey(geminiKey);
+
+  let llmProvider: LLMProvider;
+  let allowLocalCrawl = process.env.ALLOW_LOCAL_CRAWL === 'true';
+
+  if (providerType === 'groq' || (isGroqValid && !isGeminiValid)) {
+    if (isGroqValid) {
+      console.log('[server] Initialized Groq LLM provider.');
+      const model =
+        process.env.GROQ_MODEL ||
+        (process.env.LLM_MODEL && !process.env.LLM_MODEL.includes('gemini')
+          ? process.env.LLM_MODEL
+          : 'llama-3.3-70b-versatile');
+      llmProvider = new GroqLLMProvider({ apiKey: groqKey!.trim(), defaultModel: model });
+    } else {
+      console.log('[server] Groq provider requested but no valid GROQ_API_KEY found. Running with smart mock provider.');
+      llmProvider = createDevMockLLMProvider();
+      allowLocalCrawl = true;
+    }
+  } else if (isGeminiValid) {
+    console.log('[server] Initialized Gemini LLM provider.');
+    llmProvider = new GeminiLLMProvider({ apiKey: geminiKey!.trim(), defaultModel: process.env.LLM_MODEL });
+  } else if (isGroqValid) {
+    console.log('[server] Initialized Groq LLM provider.');
+    const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+    llmProvider = new GroqLLMProvider({ apiKey: groqKey!.trim(), defaultModel: model });
+  } else {
+    console.log('[server] No valid LLM API key configured. Running with smart development LLM mock provider.');
+    llmProvider = createDevMockLLMProvider();
+    allowLocalCrawl = true;
+  }
+
   const researchProvider: ResearchProvider = new DuckDuckGoHtmlSearchProvider();
   const crawler = new DynamicCrawler();
 
@@ -38,6 +96,7 @@ export function createDefaultPipelineOptions(): PipelineOptions {
     llmProvider,
     researchProvider,
     crawler,
+    allowLocalCrawl,
   };
 }
 

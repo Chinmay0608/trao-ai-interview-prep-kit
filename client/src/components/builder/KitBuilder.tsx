@@ -97,6 +97,22 @@ export function KitBuilder({ kitId, onBack }: KitBuilderProps) {
 
   return (
     <div>
+      {/* Failure alert banner */}
+      {kit.status === 'failed' && (
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-start gap-3"
+        >
+          <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" aria-hidden="true" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-800">Generation could not be completed</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              The external LLM provider returned an error (e.g. invalid API key or rate limit). You can create a new kit with the updated configuration.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Back + Title + Actions */}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div className="flex items-start gap-3 min-w-0">

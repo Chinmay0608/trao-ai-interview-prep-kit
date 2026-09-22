@@ -134,20 +134,115 @@ function DayCard({
       </button>
 
       {expanded && linkedQs.length > 0 && (
-        <ul className="mt-3 space-y-1.5 border-t border-slate-50 pt-3">
+        <ul className="mt-3 space-y-2 border-t border-slate-100 pt-3">
           {linkedQs.map((q, i) =>
             q ? (
-              <li key={`${q.id}-${i}`} className="text-sm text-slate-600 flex gap-2">
-                <span className="text-slate-300 select-none shrink-0">
-                  {day.question_ids.filter((id) => id === q.id).length > 1 ? '↩' : '–'}
-                </span>
-                <span>{q.prompt}</span>
-              </li>
+              <ScheduledQuestionItem
+                key={`${q.id}-${i}`}
+                question={q}
+                isReview={day.question_ids.slice(0, i).includes(q.id)}
+              />
             ) : null
           )}
         </ul>
       )}
     </div>
+  );
+}
+
+function ScheduledQuestionItem({
+  question,
+  isReview,
+}: {
+  question: BuilderViewModel['questions'][0];
+  isReview: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const getShortTitle = (prompt: string): string => {
+    const firstSentence = prompt.split(/(?<=[.?!])\s+/)[0];
+    if (firstSentence && firstSentence.length <= 90) return firstSentence;
+    return prompt.slice(0, 85) + '...';
+  };
+
+  const getCategoryBadgeClass = (category: string) => {
+    switch (category) {
+      case 'technical':
+        return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'behavioural':
+        return 'bg-purple-50 text-purple-700 border-purple-200';
+      case 'system-design':
+        return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'company-fit':
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      default:
+        return 'bg-slate-50 text-slate-700 border-slate-200';
+    }
+  };
+
+  const formatCategoryName = (cat: string) => {
+    switch (cat) {
+      case 'system-design':
+        return 'System Design';
+      case 'company-fit':
+        return 'Company Fit';
+      case 'behavioural':
+        return 'Behavioural';
+      default:
+        return 'Technical';
+    }
+  };
+
+  return (
+    <li className="text-sm border border-slate-100 rounded-lg p-2.5 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+      <div
+        className="flex items-center justify-between gap-2 cursor-pointer select-none"
+        onClick={() => setOpen((o) => !o)}
+        title="Click to view full question prompt and answer guidance"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-slate-400 select-none shrink-0 text-xs">
+            {isReview ? '↩ Review' : '•'}
+          </span>
+          <span
+            className={clsx(
+              'px-2 py-0.5 text-xs font-medium rounded-full border shrink-0',
+              getCategoryBadgeClass(question.category)
+            )}
+          >
+            {formatCategoryName(question.category)}
+          </span>
+          <span className="font-medium text-slate-800 truncate" title={question.prompt}>
+            {getShortTitle(question.prompt)}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="text-xs text-slate-400 hover:text-slate-600 shrink-0 flex items-center gap-0.5"
+        >
+          {open ? 'Hide' : 'Details'}
+        </button>
+      </div>
+
+      {open && (
+        <div className="mt-2.5 pt-2.5 border-t border-slate-200/60 text-xs space-y-2 text-slate-700">
+          <div>
+            <p className="font-semibold text-slate-500 uppercase tracking-wide text-[10px] mb-0.5">
+              Full Prompt
+            </p>
+            <p className="text-slate-900 leading-relaxed">{question.prompt}</p>
+          </div>
+          {question.answer_outline && (
+            <div>
+              <p className="font-semibold text-slate-500 uppercase tracking-wide text-[10px] mb-0.5">
+                Evaluation Outline
+              </p>
+              <p className="text-slate-600 leading-relaxed">{question.answer_outline}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </li>
   );
 }
 

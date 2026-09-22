@@ -11,13 +11,25 @@ interface CompanyResearchTabProps {
 export function CompanyResearchTab({ kit }: CompanyResearchTabProps) {
   const brief = kit.company_brief;
   const source = kit.source;
+  const metrics = kit.crawlMetrics;
 
-  const hasBrief = brief?.summary || brief?.what_they_do;
+  const hasBrief = Boolean(brief?.summary || brief?.what_they_do);
   const hasSources = (brief?.sources ?? []).length > 0;
   const hasHiringInfo = (source?.pages_used ?? []).length > 0;
 
   return (
     <div className="space-y-5">
+      {/* Crawl Status Banner if limited or failed */}
+      {metrics?.statusMessage && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-slate-500 mt-0.5 shrink-0" aria-hidden="true" />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Crawl Status</p>
+            <p className="text-sm text-slate-700 mt-0.5">{metrics.statusMessage}</p>
+          </div>
+        </div>
+      )}
+
       {/* Company overview */}
       <Section title="Company Overview">
         {hasBrief ? (
@@ -40,17 +52,43 @@ export function CompanyResearchTab({ kit }: CompanyResearchTabProps) {
             )}
           </div>
         ) : (
-          <HonestGap message="No public company information was found during research." />
+          <HonestGap
+            message={
+              metrics?.statusMessage ||
+              'No public company information was found during research. The site was either unreachable or disallowed by robots.txt.'
+            }
+          />
         )}
       </Section>
 
-      {/* Source info */}
-      <Section title="Research Details">
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Source & Crawler Metrics */}
+      <Section title="Research & Crawl Metrics">
+        <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <Datum label="Company URL" value={source?.company_url} />
-          <Datum label="Researched at" value={source?.researched_at ? new Date(source.researched_at).toLocaleString() : undefined} />
-          <Datum label="Pages crawled" value={source?.pages_used?.length ? String(source.pages_used.length) : undefined} />
-          <Datum label="JD characters" value={source?.jd_chars ? source.jd_chars.toLocaleString() : undefined} />
+          <Datum
+            label="Researched at"
+            value={source?.researched_at ? new Date(source.researched_at).toLocaleString() : undefined}
+          />
+          <Datum
+            label="Pages Attempted"
+            value={metrics ? String(metrics.pagesAttempted) : undefined}
+          />
+          <Datum
+            label="Pages Succeeded"
+            value={metrics ? String(metrics.pagesSucceeded) : (source?.pages_used?.length ? String(source.pages_used.length) : undefined)}
+          />
+          <Datum
+            label="Pages Blocked / Failed"
+            value={metrics ? String(metrics.pagesFailed + metrics.blockedByRobots) : undefined}
+          />
+          <Datum
+            label="Research Sources Found"
+            value={String((brief?.sources ?? []).length)}
+          />
+          <Datum
+            label="JD Characters"
+            value={source?.jd_chars ? source.jd_chars.toLocaleString() : undefined}
+          />
         </dl>
       </Section>
 

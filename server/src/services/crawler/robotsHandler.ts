@@ -86,6 +86,7 @@ export class RobotsHandler {
     try {
       const res = await safeFetch(robotsUrl, {
         ...this.safeFetchOptions,
+        allowTextPlain: true,
         maxResponseBytes: 100 * 1024, // 100 KB max for robots.txt
         requestTimeoutMs: 5000,
       });

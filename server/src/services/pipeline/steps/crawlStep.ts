@@ -20,6 +20,14 @@ export async function executeCrawlStep(
       pagesUsed: [],
       skippedSources: [{ url: companyUrl, reason: err.message || 'Crawl failed' }],
       hiringEvidenceFound: false,
+      metrics: {
+        pagesAttempted: 1,
+        pagesSucceeded: 0,
+        pagesFailed: 1,
+        pagesSkipped: 0,
+        blockedByRobots: 0,
+        statusMessage: `Crawl failed: ${err.message || 'Target was unreachable or disallowed'}`,
+      },
     };
   }
 }

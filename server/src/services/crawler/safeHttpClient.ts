@@ -15,11 +15,14 @@ import {
   defaultDnsLookup,
 } from './ssrfGuard.js';
 
+import type { LookupAddress, LookupOneOptions, LookupAllOptions } from 'dns';
+
 export interface SafeFetchOptions {
   maxResponseBytes?: number;
   requestTimeoutMs?: number;
   maxRedirects?: number;
   allowLocal?: boolean;
+  allowTextPlain?: boolean;
   dnsLookupFn?: DnsLookupFunction;
   httpFetchOverride?: (
     url: string,
@@ -31,15 +34,67 @@ export interface SafeFetchOptions {
 }
 
 /**
- * Checks whether Content-Type header matches HTML/XHTML.
+ * Checks whether Content-Type header matches HTML/XHTML, or text/plain if explicitly allowed.
  */
-export function isAllowedContentType(contentTypeHeader?: string): boolean {
+export function isAllowedContentType(contentTypeHeader?: string, allowTextPlain = false): boolean {
   if (!contentTypeHeader) return false;
   const lower = contentTypeHeader.toLowerCase();
-  return (
+  if (
     lower.includes('text/html') ||
     lower.includes('application/xhtml+xml')
-  );
+  ) {
+    return true;
+  }
+  if (allowTextPlain && lower.includes('text/plain')) {
+    return true;
+  }
+  return false;
+}
+
+export type SafeLookupCallback = (
+  err: NodeJS.ErrnoException | null,
+  addressOrAddresses: any,
+  family?: number
+) => void;
+
+/**
+ * Creates a type-safe DNS lookup function that ensures only validated IPs are returned.
+ * Supports both standard lookup (address, family) and `{ all: true }` (LookupAddress[]).
+ * Prefers validated IPv4 when a single address is requested.
+ */
+export function createSafeLookup(validatedIps: string[]) {
+  return (
+    _hostname: string,
+    optionsOrCallback: LookupOneOptions | LookupAllOptions | SafeLookupCallback,
+    rawCallback?: SafeLookupCallback
+  ): void => {
+    const cb: SafeLookupCallback | undefined =
+      typeof optionsOrCallback === 'function' ? optionsOrCallback : rawCallback;
+    const opts =
+      typeof optionsOrCallback === 'object' && optionsOrCallback !== null
+        ? (optionsOrCallback as LookupOneOptions | LookupAllOptions)
+        : {};
+
+    if (!cb) return;
+
+    if (!validatedIps || validatedIps.length === 0) {
+      cb(new Error(`SSRF validation failed: No validated IP addresses for ${_hostname}`), undefined);
+      return;
+    }
+
+    if ('all' in opts && opts.all === true) {
+      const addresses: LookupAddress[] = validatedIps.map((ip) => ({
+        address: ip,
+        family: (ip.includes(':') ? 6 : 4) as 4 | 6,
+      }));
+      cb(null, addresses);
+    } else {
+      const ipv4 = validatedIps.find((ip) => !ip.includes(':'));
+      const chosenIp = ipv4 || validatedIps[0];
+      const family = chosenIp.includes(':') ? 6 : 4;
+      cb(null, chosenIp, family);
+    }
+  };
 }
 
 /**
@@ -79,16 +134,7 @@ export async function safeFetch(
     const validatedIps = await resolveAndValidateDns(parsed.hostname, allowLocal, dnsLookupFn);
 
     // DNS Rebinding Defense: Use custom Agent lookup that returns our validated IP
-    const safeLookup = (
-      _hostname: string,
-      _options: any,
-      callback: (err: Error | null, address: string, family: number) => void
-    ) => {
-      // Pick first validated IP
-      const ip = validatedIps[0];
-      const family = ip.includes(':') ? 6 : 4;
-      callback(null, ip, family);
-    };
+    const safeLookup = createSafeLookup(validatedIps);
 
     const httpAgent = new http.Agent({ lookup: safeLookup as any, keepAlive: false });
     const httpsAgent = new https.Agent({ lookup: safeLookup as any, keepAlive: false });
@@ -158,7 +204,7 @@ export async function safeFetch(
 
     // Step 5: Check Content-Type Header before reading body
     const contentType = String(response.headers?.['content-type'] || '');
-    if (!isAllowedContentType(contentType)) {
+    if (!isAllowedContentType(contentType, options.allowTextPlain === true)) {
       throw new UnsupportedContentTypeError(contentType);
     }
 

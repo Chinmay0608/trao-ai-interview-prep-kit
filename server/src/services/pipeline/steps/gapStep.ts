@@ -23,13 +23,19 @@ export async function executeGapGenerationStep(
 
   const systemPrompt = `You are a Technical Assessment Specialist performing a targeted second-pass generation.
 The following MUST-HAVE requirements currently lack interview questions in the candidate preparation kit.
-Your task is to generate 1-2 focused, high-quality interview questions specifically targeting each missing requirement ID.
+Your task is to generate 1-2 focused, high-quality, natural interview questions specifically targeting each missing requirement ID.
 
-CRITICAL RULES:
+CRITICAL QUALITY RULES:
+- Requirements are BACKGROUND CONTEXT, NOT text to copy or quote into the question prompt.
+- NEVER mechanically paste requirement text into questions. DO NOT write questions like:
+  "Explain your experience and approach to <requirement text>" or "In-depth technical scenario regarding <requirement text>. How would you architect this system?".
+- Questions must sound like real human interview questions: grammatically natural, conversational, directly testing candidate competency.
+- Behavioural requirements (e.g. teamwork, feedback, communication) must produce natural behavioural/STAR questions (e.g. "Tell me about a time you received critical feedback from a teammate..."), NEVER ungrounded distributed architecture questions.
 - Every question MUST explicitly set requirement_ids to include the target requirement ID it addresses.
-- Match requirement kind: technical requirements MUST produce technical or system-design questions; behavioural/leadership requirements MUST produce behavioural questions.
+- DO NOT leak internal IDs like "r1" or "[ID: r1]" into the question text.
 - Assign appropriate difficulty (1 to 3).
-- Provide concise, structured answer_outline guidance.`;
+- Provide concise, structured answer_outline guidance.
+- Return a JSON object with this shape: { "questions": [ { "category": "technical"|"system-design"|"behavioural"|"company-fit", "prompt": string, "answer_outline": string, "difficulty": 1|2|3, "requirement_ids": string[] } ] }`;
 
   const prompt = `Generate targeted interview questions to close the coverage gap for these uncovered MUST-HAVE requirements for a ${seniority} ${roleTitle}:
 
