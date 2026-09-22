@@ -32,7 +32,20 @@ export class AuthenticationError extends Error {
   }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'trao_dev_jwt_secret_minimum_32_characters_long_12345';
+export function getJwtSecret(): string {
+  const isProd = process.env.NODE_ENV === 'production';
+  const secret = process.env.JWT_SECRET;
+  if (isProd) {
+    if (!secret || secret.trim().length < 32) {
+      throw new Error(
+        '[server] Fatal: In production mode, JWT_SECRET must be configured with at least 32 characters.'
+      );
+    }
+    return secret.trim();
+  }
+  return secret || 'trao_dev_jwt_secret_minimum_32_characters_long_12345';
+}
+
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 /**
@@ -63,7 +76,7 @@ export function signAuthToken(user: IUserDoc): string {
     userId: user._id.toString(),
     email: user.email,
   };
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN as any });
 }
 
 /**
@@ -71,7 +84,7 @@ export function signAuthToken(user: IUserDoc): string {
  */
 export function verifyAuthToken(token: string): { userId: string; email: string } {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
+    const decoded = jwt.verify(token, getJwtSecret()) as { userId: string; email: string };
     if (!decoded || !decoded.userId) {
       throw new AuthenticationError('INVALID_TOKEN', 'Token payload is missing user identity.');
     }

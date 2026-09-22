@@ -33,10 +33,32 @@ export function Dashboard({ onOpenKit }: DashboardProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Auto-reconnect to active generating job if user refreshes the browser
+  useEffect(() => {
+    if (!activeJobId && list.length > 0) {
+      const runningKit = list.find((k) => k.status === 'generating' && k.activeJobId);
+      if (runningKit && runningKit.activeJobId) {
+        setActiveJobId(runningKit.activeJobId);
+        setActiveJobKitId(runningKit.id);
+      }
+    }
+  }, [list, activeJobId]);
+
   const handleCreated = (kitId: string, jobId: string) => {
     setShowModal(false);
     setActiveJobKitId(kitId);
     setActiveJobId(jobId);
+  };
+
+  const handleKitClick = (kit: KitListItem) => {
+    if (kit.status === 'generating' && kit.activeJobId) {
+      setActiveJobId(kit.activeJobId);
+      setActiveJobKitId(kit.id);
+      return;
+    }
+    if (kit.status === 'ready') {
+      onOpenKit(kit.id);
+    }
   };
 
   const handleGenerationDone = async (kitId: string) => {
@@ -148,7 +170,7 @@ export function Dashboard({ onOpenKit }: DashboardProps) {
       ) : (
         <div className="space-y-3">
           {list.map((kit) => (
-            <KitCard key={kit.id} kit={kit} onOpen={() => onOpenKit(kit.id)} />
+            <KitCard key={kit.id} kit={kit} onOpen={() => handleKitClick(kit)} />
           ))}
         </div>
       )}

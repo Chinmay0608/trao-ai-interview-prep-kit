@@ -63,7 +63,9 @@ export function createDefaultPipelineOptions(): PipelineOptions {
   const isGroqValid = isValidApiKey(groqKey);
   const isGeminiValid = isValidApiKey(geminiKey);
 
-  let allowLocalCrawl = process.env.ALLOW_LOCAL_CRAWL === 'true';
+  const isProd = process.env.NODE_ENV === 'production';
+  // Strict production security: ALLOW_LOCAL_CRAWL is NEVER permitted in production
+  let allowLocalCrawl = !isProd && process.env.ALLOW_LOCAL_CRAWL === 'true';
   const cacheKey = `${providerType}:${groqKey || ''}:${geminiKey || ''}:${process.env.GROQ_MODEL || ''}:${process.env.LLM_MODEL || ''}`;
 
   if (!cachedLLMProvider || cachedLLMProviderKey !== cacheKey) {
@@ -77,9 +79,11 @@ export function createDefaultPipelineOptions(): PipelineOptions {
             : 'llama-3.3-70b-versatile');
         cachedLLMProvider = new GroqLLMProvider({ apiKey: groqKey!.trim(), defaultModel: model });
       } else {
+        if (isProd) {
+          throw new Error('[server] Fatal: GROQ_API_KEY is required in production mode when LLM_PROVIDER=groq.');
+        }
         console.log('[server] Groq provider requested but no valid GROQ_API_KEY found. Running with smart mock provider.');
         cachedLLMProvider = createDevMockLLMProvider();
-        allowLocalCrawl = true;
       }
     } else if (isGeminiValid) {
       console.log('[server] Initialized Gemini LLM provider.');
@@ -89,9 +93,13 @@ export function createDefaultPipelineOptions(): PipelineOptions {
       const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
       cachedLLMProvider = new GroqLLMProvider({ apiKey: groqKey!.trim(), defaultModel: model });
     } else {
+      if (isProd) {
+        throw new Error(
+          '[server] Fatal: No valid LLM API key configured in production mode. Please set GROQ_API_KEY or GEMINI_API_KEY.'
+        );
+      }
       console.log('[server] No valid LLM API key configured. Running with smart development LLM mock provider.');
       cachedLLMProvider = createDevMockLLMProvider();
-      allowLocalCrawl = true;
     }
     cachedLLMProviderKey = cacheKey;
   }

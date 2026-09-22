@@ -18,10 +18,17 @@ export function createApp(): Express {
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-  // 3. Health check endpoint
-  app.get('/health', (_req, res) => {
-    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-  });
+  // 3. Health check endpoints (suitable for cloud probes and load balancers)
+  const healthHandler = (_req: express.Request, res: express.Response) => {
+    res.status(200).json({
+      status: 'ok',
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+    });
+  };
+  app.get('/health', healthHandler);
+  app.get('/api/health', healthHandler);
 
   // 4. API Routes
   app.use('/api/auth', authRoutes);

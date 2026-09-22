@@ -51,7 +51,9 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const rawApiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').trim().replace(/\/+$/, '');
+// Strip trailing '/api' suffix if user provided it in NEXT_PUBLIC_API_URL since all endpoints specify '/api/...'
+const API_BASE = rawApiBase.endsWith('/api') ? rawApiBase.slice(0, -4) : rawApiBase;
 
 let inMemoryToken: string | null = null;
 

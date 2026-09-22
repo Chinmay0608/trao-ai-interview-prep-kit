@@ -8,6 +8,10 @@
     "server",
     "client"
   ],
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,green\" \"npm run dev -w server\" \"npm run dev -w client\"",
     "dev:server": "npm run dev -w server",
@@ -16,6 +20,9 @@
     "build:shared": "npm run build -w shared",
     "build:server": "npm run build -w server",
     "build:client": "npm run build -w client",
+    "start": "npm run start -w server",
+    "start:server": "npm run start -w server",
+    "start:client": "npm run start -w client",
     "test": "vitest run && npm run test -w client",
     "test:backend": "vitest run",
     "test:client": "npm run test -w client",

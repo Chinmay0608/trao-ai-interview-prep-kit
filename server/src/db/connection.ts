@@ -10,11 +10,27 @@ export async function connectDb(uri?: string): Promise<typeof mongoose> {
     return mongoose;
   }
 
-  const mongoUri = uri || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/trao_dev';
+  const isProd = process.env.NODE_ENV === 'production';
+  const mongoUri = uri || process.env.MONGODB_URI;
 
-  await mongoose.connect(mongoUri, {
-    autoIndex: true,
-  });
+  if (!mongoUri) {
+    if (isProd) {
+      throw new Error(
+        '[server] Fatal: MONGODB_URI environment variable is required in production mode. ' +
+        'Please provide a valid connection string (e.g. MongoDB Atlas M0 cluster URI).'
+      );
+    }
+    // Development local fallback
+    return connectDb('mongodb://127.0.0.1:27017/trao_dev');
+  }
+
+  try {
+    await mongoose.connect(mongoUri, {
+      autoIndex: true,
+    });
+  } catch (err: any) {
+    throw new Error(`[server] Database connection failed: ${err.message}`);
+  }
 
   isConnected = true;
   return mongoose;
