@@ -16,6 +16,7 @@ export class TokenBucketRateLimiter {
   private lastRefillMs: number;
   private now: () => number;
   private sleep: (ms: number) => Promise<void>;
+  private pausedUntilMs: number = 0;
 
   // Queue to preserve strict FIFO ordering across concurrent async callers
   private queue: Promise<void> = Promise.resolve();
@@ -39,10 +40,40 @@ export class TokenBucketRateLimiter {
   }
 
   /**
-   * Refills the token bucket based on elapsed time.
+   * Signals that an upstream provider has rate-limited requests (e.g. HTTP 429).
+   * Drains remaining tokens and pauses the rate limiter for the specified cooldown window.
+   */
+  public notifyRateLimited(cooldownSeconds: number): void {
+    if (cooldownSeconds <= 0) return;
+    const cooldownMs = Math.min(60_000, Math.round(cooldownSeconds * 1000));
+    const currentMs = this.now();
+    const resumeAt = currentMs + cooldownMs;
+    if (resumeAt > this.pausedUntilMs) {
+      this.pausedUntilMs = resumeAt;
+    }
+    // Drain tokens so waiting callers cannot fire prematurely into a rate-limited provider
+    this.currentTokens = 0;
+    this.lastRefillMs = currentMs;
+  }
+
+  /**
+   * Returns whether the rate limiter is currently in an upstream cooldown pause.
+   */
+  public isPaused(): boolean {
+    return this.now() < this.pausedUntilMs;
+  }
+
+  /**
+   * Refills the token bucket based on elapsed time if not paused.
    */
   private refill(): void {
     const currentMs = this.now();
+    if (currentMs < this.pausedUntilMs) {
+      // Still in cooldown period from an upstream 429
+      this.lastRefillMs = currentMs;
+      return;
+    }
+
     const elapsedSeconds = Math.max(0, (currentMs - this.lastRefillMs) / 1000);
     if (elapsedSeconds > 0) {
       const tokensToAdd = elapsedSeconds * this.refillRatePerSecond;
@@ -58,6 +89,13 @@ export class TokenBucketRateLimiter {
   public acquire(tokensRequired = 1): Promise<void> {
     const acquireOperation = async (): Promise<void> => {
       while (true) {
+        const currentMs = this.now();
+        if (currentMs < this.pausedUntilMs) {
+          const pauseRemaining = this.pausedUntilMs - currentMs;
+          await this.sleep(pauseRemaining);
+          continue;
+        }
+
         this.refill();
 
         if (this.currentTokens >= tokensRequired) {

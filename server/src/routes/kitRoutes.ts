@@ -50,6 +50,10 @@ function isValidApiKey(key?: string): boolean {
   return true;
 }
 
+// Cache singleton LLMProvider so concurrent requests share the exact same rate limiter
+let cachedLLMProvider: LLMProvider | null = null;
+let cachedLLMProviderKey = '';
+
 // Default pipeline options factory
 export function createDefaultPipelineOptions(): PipelineOptions {
   const groqKey = process.env.GROQ_API_KEY || process.env.GROQ_API_KEY_2;
@@ -59,36 +63,40 @@ export function createDefaultPipelineOptions(): PipelineOptions {
   const isGroqValid = isValidApiKey(groqKey);
   const isGeminiValid = isValidApiKey(geminiKey);
 
-  let llmProvider: LLMProvider;
   let allowLocalCrawl = process.env.ALLOW_LOCAL_CRAWL === 'true';
+  const cacheKey = `${providerType}:${groqKey || ''}:${geminiKey || ''}:${process.env.GROQ_MODEL || ''}:${process.env.LLM_MODEL || ''}`;
 
-  if (providerType === 'groq' || (isGroqValid && !isGeminiValid)) {
-    if (isGroqValid) {
+  if (!cachedLLMProvider || cachedLLMProviderKey !== cacheKey) {
+    if (providerType === 'groq' || (isGroqValid && !isGeminiValid)) {
+      if (isGroqValid) {
+        console.log('[server] Initialized Groq LLM provider.');
+        const model =
+          process.env.GROQ_MODEL ||
+          (process.env.LLM_MODEL && !process.env.LLM_MODEL.includes('gemini')
+            ? process.env.LLM_MODEL
+            : 'llama-3.3-70b-versatile');
+        cachedLLMProvider = new GroqLLMProvider({ apiKey: groqKey!.trim(), defaultModel: model });
+      } else {
+        console.log('[server] Groq provider requested but no valid GROQ_API_KEY found. Running with smart mock provider.');
+        cachedLLMProvider = createDevMockLLMProvider();
+        allowLocalCrawl = true;
+      }
+    } else if (isGeminiValid) {
+      console.log('[server] Initialized Gemini LLM provider.');
+      cachedLLMProvider = new GeminiLLMProvider({ apiKey: geminiKey!.trim(), defaultModel: process.env.LLM_MODEL });
+    } else if (isGroqValid) {
       console.log('[server] Initialized Groq LLM provider.');
-      const model =
-        process.env.GROQ_MODEL ||
-        (process.env.LLM_MODEL && !process.env.LLM_MODEL.includes('gemini')
-          ? process.env.LLM_MODEL
-          : 'llama-3.3-70b-versatile');
-      llmProvider = new GroqLLMProvider({ apiKey: groqKey!.trim(), defaultModel: model });
+      const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+      cachedLLMProvider = new GroqLLMProvider({ apiKey: groqKey!.trim(), defaultModel: model });
     } else {
-      console.log('[server] Groq provider requested but no valid GROQ_API_KEY found. Running with smart mock provider.');
-      llmProvider = createDevMockLLMProvider();
+      console.log('[server] No valid LLM API key configured. Running with smart development LLM mock provider.');
+      cachedLLMProvider = createDevMockLLMProvider();
       allowLocalCrawl = true;
     }
-  } else if (isGeminiValid) {
-    console.log('[server] Initialized Gemini LLM provider.');
-    llmProvider = new GeminiLLMProvider({ apiKey: geminiKey!.trim(), defaultModel: process.env.LLM_MODEL });
-  } else if (isGroqValid) {
-    console.log('[server] Initialized Groq LLM provider.');
-    const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
-    llmProvider = new GroqLLMProvider({ apiKey: groqKey!.trim(), defaultModel: model });
-  } else {
-    console.log('[server] No valid LLM API key configured. Running with smart development LLM mock provider.');
-    llmProvider = createDevMockLLMProvider();
-    allowLocalCrawl = true;
+    cachedLLMProviderKey = cacheKey;
   }
 
+  const llmProvider = cachedLLMProvider;
   const researchProvider: ResearchProvider = new DuckDuckGoHtmlSearchProvider();
   const crawler = new DynamicCrawler();
 

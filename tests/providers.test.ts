@@ -5,6 +5,8 @@ import {
   ProviderRateLimitError,
   ProviderTimeoutError,
   ProviderResponseError,
+  ProviderNetworkError,
+  ProviderConfigurationError,
   StructuredOutputParseError,
   StructuredOutputValidationError,
   sanitizeErrorMessage,
@@ -86,20 +88,20 @@ describe('Phase 3: External Providers & Contracts', () => {
       ).rejects.toThrow(ProviderTimeoutError);
     });
 
-    it('6. retries on transient 429 rate limits and succeeds after recovery', async () => {
+    it('6. 429 -> 429 -> 200: retries on transient 429 rate limits and succeeds on attempt 3', async () => {
       const sleepDelays: number[] = [];
       const mockSleep = async (ms: number) => {
         sleepDelays.push(ms);
       };
 
-      // 2 transient failures, then success
+      // 2 transient 429 failures, then 200 success
       const provider = new MockLLMProvider({
         transientFailuresRemaining: 2,
-        mockText: 'Recovered after 429',
+        mockText: 'Recovered after two 429 errors',
       });
 
       const text = await provider.generateText({
-        prompt: 'Rate limit test',
+        prompt: 'Rate limit recovery test',
         retryConfig: {
           initialDelayMs: 100,
           maxAttempts: 3,
@@ -108,54 +110,127 @@ describe('Phase 3: External Providers & Contracts', () => {
         },
       });
 
-      expect(text).toBe('Recovered after 429');
-      expect(provider.callCount).toBe(3); // 2 retries + 1 success
+      expect(text).toBe('Recovered after two 429 errors');
+      expect(provider.callCount).toBe(3); // Attempt 1 (429), Attempt 2 (429), Attempt 3 (200)
       expect(sleepDelays.length).toBe(2);
     });
 
-    it('7. retries on transient 5xx server errors', async () => {
-      let attempts = 0;
-      const sleepDelays: number[] = [];
+    it('7. retries on transient 5xx server errors (500, 502, 503, 504)', async () => {
+      for (const status of [500, 502, 503, 504]) {
+        let attempts = 0;
+        const sleepDelays: number[] = [];
 
-      const result = await executeWithRetry(
-        async () => {
-          attempts++;
-          if (attempts < 3) {
-            throw new ProviderResponseError('503 Service Unavailable', 'mock', 503);
-          }
-          return 'Success on attempt 3';
-        },
-        {
-          initialDelayMs: 50,
-          maxAttempts: 4,
-          jitterFactor: 0,
-          sleepFn: async (ms) => {
-            sleepDelays.push(ms);
+        const result = await executeWithRetry(
+          async () => {
+            attempts++;
+            if (attempts < 2) {
+              throw new ProviderResponseError(`HTTP ${status} Server Error`, 'mock', status);
+            }
+            return `Success after ${status}`;
           },
-        }
-      );
+          {
+            initialDelayMs: 20,
+            maxAttempts: 3,
+            jitterFactor: 0,
+            sleepFn: async (ms) => {
+              sleepDelays.push(ms);
+            },
+          }
+        );
 
-      expect(result).toBe('Success on attempt 3');
-      expect(attempts).toBe(3);
-      expect(sleepDelays.length).toBe(2);
+        expect(result).toBe(`Success after ${status}`);
+        expect(attempts).toBe(2);
+        expect(sleepDelays.length).toBe(1);
+      }
     });
 
-    it('8. does not retry non-retryable 401 client errors', async () => {
-      let attempts = 0;
+    it('8. retries on timeout (HTTP 408, ECONNABORTED) and network connection errors', async () => {
+      // 8a. HTTP 408 Request Timeout
+      let attempts408 = 0;
+      const res408 = await executeWithRetry(
+        async () => {
+          attempts408++;
+          if (attempts408 < 2) {
+            throw new ProviderTimeoutError('HTTP 408 Request Timeout', 'mock');
+          }
+          return 'Success after 408';
+        },
+        { initialDelayMs: 10, maxAttempts: 3, jitterFactor: 0, sleepFn: async () => {} }
+      );
+      expect(res408).toBe('Success after 408');
+      expect(attempts408).toBe(2);
+
+      // 8b. Network connection error
+      let attemptsNet = 0;
+      const resNet = await executeWithRetry(
+        async () => {
+          attemptsNet++;
+          if (attemptsNet < 2) {
+            throw new ProviderNetworkError('ECONNRESET connection reset', 'mock');
+          }
+          return 'Success after network error';
+        },
+        { initialDelayMs: 10, maxAttempts: 3, jitterFactor: 0, sleepFn: async () => {} }
+      );
+      expect(resNet).toBe('Success after network error');
+      expect(attemptsNet).toBe(2);
+    });
+
+    it('9. does not retry non-retryable 400, 401, 403, and schema/parse errors', async () => {
+      // 400 Bad Request
+      let attempts400 = 0;
       await expect(
         executeWithRetry(
           async () => {
-            attempts++;
-            throw new ProviderResponseError('401 Unauthorized', 'mock', 401);
+            attempts400++;
+            throw new ProviderResponseError('400 Bad Request', 'mock', 400);
           },
-          { maxAttempts: 3 }
+          { maxAttempts: 3, sleepFn: async () => {} }
         )
       ).rejects.toThrow(ProviderResponseError);
+      expect(attempts400).toBe(1);
 
-      expect(attempts).toBe(1); // Never retries non-retryable error
+      // 401 Unauthorized
+      let attempts401 = 0;
+      await expect(
+        executeWithRetry(
+          async () => {
+            attempts401++;
+            throw new ProviderConfigurationError('401 Unauthorized API key', 'mock');
+          },
+          { maxAttempts: 3, sleepFn: async () => {} }
+        )
+      ).rejects.toThrow(ProviderConfigurationError);
+      expect(attempts401).toBe(1);
+
+      // 403 Forbidden
+      let attempts403 = 0;
+      await expect(
+        executeWithRetry(
+          async () => {
+            attempts403++;
+            throw new ProviderConfigurationError('403 Forbidden', 'mock');
+          },
+          { maxAttempts: 3, sleepFn: async () => {} }
+        )
+      ).rejects.toThrow(ProviderConfigurationError);
+      expect(attempts403).toBe(1);
+
+      // Structured schema validation failure
+      let attemptsSchema = 0;
+      await expect(
+        executeWithRetry(
+          async () => {
+            attemptsSchema++;
+            throw new StructuredOutputValidationError('Schema failure', 'mock', []);
+          },
+          { maxAttempts: 3, sleepFn: async () => {} }
+        )
+      ).rejects.toThrow(StructuredOutputValidationError);
+      expect(attemptsSchema).toBe(1);
     });
 
-    it('9. respects Retry-After seconds in backoff calculation', async () => {
+    it('10. respects Retry-After header seconds in backoff calculation and rate limiter', async () => {
       const sleepDelays: number[] = [];
       let attempts = 0;
 
@@ -163,7 +238,7 @@ describe('Phase 3: External Providers & Contracts', () => {
         async () => {
           attempts++;
           if (attempts === 1) {
-            throw new ProviderRateLimitError('Rate limited', 'mock', 'model', 5); // Retry-After 5s
+            throw new ProviderRateLimitError('Rate limited', 'mock', 'model', 4); // Retry-After 4s
           }
           return 'Done';
         },
@@ -177,25 +252,83 @@ describe('Phase 3: External Providers & Contracts', () => {
         }
       );
 
-      expect(sleepDelays[0]).toBe(5000); // 5 seconds in ms
+      expect(sleepDelays[0]).toBe(4000); // 4 seconds in ms
+      expect(attempts).toBe(2);
     });
 
-    it('10. throws error once maximum retry limit is exhausted', async () => {
+    it('10b. 429 -> exhausted retries fails cleanly at maxAttempts and never retries indefinitely', async () => {
       const provider = new MockLLMProvider({ shouldRateLimit: true });
+      const sleepDelays: number[] = [];
 
       await expect(
         provider.generateText({
           prompt: 'Exhaust retries',
           retryConfig: {
-            maxAttempts: 2,
+            maxAttempts: 3,
             initialDelayMs: 10,
             jitterFactor: 0,
-            sleepFn: async () => {},
+            sleepFn: async (ms) => {
+              sleepDelays.push(ms);
+            },
           },
         })
       ).rejects.toThrow(ProviderRateLimitError);
 
-      expect(provider.callCount).toBe(2);
+      expect(provider.callCount).toBe(3); // Exactly maxAttempts, never retries indefinitely
+      expect(sleepDelays.length).toBe(2); // 2 delays between 3 attempts
+    });
+
+    it('10c. prevents retry multiplication between provider and caller', async () => {
+      // Calling provider with maxAttempts=3 must result in exactly 3 calls total,
+      // proving that no outer layer multiplies attempts (e.g. 3x3=9).
+      const provider = new MockLLMProvider({ shouldRateLimit: true });
+
+      try {
+        await provider.generateStructured({
+          prompt: 'Extraction step prompt',
+          schema: testSchema,
+          retryConfig: {
+            maxAttempts: 3,
+            initialDelayMs: 5,
+            jitterFactor: 0,
+            sleepFn: async () => {},
+          },
+        });
+      } catch (err) {
+        expect(err).toBeInstanceOf(ProviderRateLimitError);
+      }
+
+      expect(provider.callCount).toBe(3); // Strictly 3, no multiplication
+    });
+
+    it('10d. notifyRateLimited pauses rate limiter and drains tokens during cooldown', async () => {
+      let simulatedTime = 1000;
+      const sleepDelays: number[] = [];
+
+      const limiter = new TokenBucketRateLimiter({
+        capacity: 5,
+        refillRatePerSecond: 1,
+        injectableNow: () => simulatedTime,
+        injectableSleep: async (ms) => {
+          sleepDelays.push(ms);
+          simulatedTime += ms;
+        },
+      });
+
+      expect(limiter.getAvailableTokens()).toBe(5);
+
+      // Upstream 429 occurs with 3s cooldown
+      limiter.notifyRateLimited(3);
+
+      expect(limiter.isPaused()).toBe(true);
+      expect(limiter.getAvailableTokens()).toBe(0); // Drained
+
+      // Acquire must wait for the 3s cooldown to elapse
+      await limiter.acquire(1);
+
+      expect(sleepDelays.length).toBeGreaterThanOrEqual(1);
+      expect(sleepDelays[0]).toBe(3000); // Waited 3 seconds cooldown
+      expect(limiter.isPaused()).toBe(false);
     });
 
     it('11. token bucket rate limiter enforces capacity and refill pacing', async () => {

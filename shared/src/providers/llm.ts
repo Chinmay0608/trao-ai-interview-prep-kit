@@ -74,18 +74,24 @@ export async function executeWithRetry<T>(
       }
 
       // Determine backoff duration
-      let delayMs = Math.min(
-        config.maxDelayMs,
-        config.initialDelayMs * Math.pow(2, attempt - 1)
-      );
-
-      // Respect Retry-After if provided
-      if (error instanceof LLMProviderError && error.retryAfterSeconds) {
-        delayMs = Math.max(delayMs, error.retryAfterSeconds * 1000);
-      } else if (config.jitterFactor > 0) {
-        // Apply jitter: +/- jitterFactor
-        const jitter = 1 + (Math.random() * 2 - 1) * config.jitterFactor;
-        delayMs = Math.round(delayMs * jitter);
+      let delayMs: number;
+      if (error instanceof LLMProviderError && error.retryAfterSeconds && error.retryAfterSeconds > 0) {
+        // Respect Retry-After header directly, bounded by safety ceiling (max 60 seconds)
+        const MAX_SAFETY_RETRY_AFTER_MS = 60_000;
+        delayMs = Math.min(MAX_SAFETY_RETRY_AFTER_MS, Math.round(error.retryAfterSeconds * 1000));
+      } else {
+        // Deterministic exponential backoff
+        const baseDelay = Math.min(
+          config.maxDelayMs,
+          config.initialDelayMs * Math.pow(2, attempt - 1)
+        );
+        if (config.jitterFactor > 0) {
+          // Apply jitter: +/- jitterFactor
+          const jitter = 1 + (Math.random() * 2 - 1) * config.jitterFactor;
+          delayMs = Math.max(1, Math.round(baseDelay * jitter));
+        } else {
+          delayMs = baseDelay;
+        }
       }
 
       await config.sleepFn(delayMs);

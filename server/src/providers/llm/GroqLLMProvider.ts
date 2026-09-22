@@ -222,28 +222,61 @@ export class GroqLLMProvider implements LLMProvider {
       const responseData = axiosErr.response?.data;
       const rawMessage = responseData?.error?.message || axiosErr.message;
 
-      // Extract Retry-After if present
+      // Extract Retry-After or rate-limit reset headers if present
       let retryAfterSeconds: number | undefined;
-      const retryAfterHeader = axiosErr.response?.headers?.['retry-after'];
+      const headers = axiosErr.response?.headers;
+      const retryAfterHeader = headers?.['retry-after'] || headers?.['Retry-After'];
       if (retryAfterHeader) {
-        const parsed = parseInt(String(retryAfterHeader), 10);
-        if (!isNaN(parsed) && parsed > 0) {
-          retryAfterSeconds = parsed;
+        const num = parseFloat(String(retryAfterHeader));
+        if (!isNaN(num) && num > 0) {
+          retryAfterSeconds = Math.ceil(num);
+        } else {
+          // Parse HTTP-date format (RFC 7231)
+          const dateMs = Date.parse(String(retryAfterHeader));
+          if (!isNaN(dateMs)) {
+            const diffSeconds = Math.ceil((dateMs - Date.now()) / 1000);
+            if (diffSeconds > 0) {
+              retryAfterSeconds = diffSeconds;
+            }
+          }
+        }
+      } else {
+        // Fallback: check x-ratelimit-reset-requests / x-ratelimit-reset-tokens (e.g. "1.5s", "500ms")
+        const resetHeader =
+          headers?.['x-ratelimit-reset-requests'] ||
+          headers?.['x-ratelimit-reset-tokens'] ||
+          headers?.['x-ratelimit-reset'];
+        if (resetHeader) {
+          const str = String(resetHeader).trim();
+          if (str.endsWith('ms')) {
+            const ms = parseFloat(str.slice(0, -2));
+            if (!isNaN(ms) && ms > 0) retryAfterSeconds = Math.ceil(ms / 1000);
+          } else if (str.endsWith('s')) {
+            const s = parseFloat(str.slice(0, -1));
+            if (!isNaN(s) && s > 0) retryAfterSeconds = Math.ceil(s);
+          } else {
+            const s = parseFloat(str);
+            if (!isNaN(s) && s > 0) retryAfterSeconds = Math.ceil(s);
+          }
         }
       }
 
       if (status === 429) {
+        // Notify shared rate limiter so concurrent callers pause during provider cooldown
+        const cooldown = retryAfterSeconds && retryAfterSeconds > 0 ? retryAfterSeconds : 2;
+        this.rateLimiter.notifyRateLimited(cooldown);
+
         throw new ProviderRateLimitError(
-          `Groq rate limit exceeded: ${rawMessage}`,
+          `Groq rate limit exceeded (HTTP 429): ${rawMessage}`,
           'groq',
           model,
           retryAfterSeconds
         );
       }
 
-      if (axiosErr.code === 'ECONNABORTED' || axiosErr.message.includes('timeout')) {
+      if (status === 408 || axiosErr.code === 'ECONNABORTED' || axiosErr.message.includes('timeout')) {
         throw new ProviderTimeoutError(
-          `Groq request timed out: ${rawMessage}`,
+          `Groq request timed out (HTTP ${status || 408}): ${rawMessage}`,
           'groq',
           model
         );
@@ -259,6 +292,9 @@ export class GroqLLMProvider implements LLMProvider {
       }
 
       if (status && status >= 500) {
+        if (retryAfterSeconds && retryAfterSeconds > 0) {
+          this.rateLimiter.notifyRateLimited(retryAfterSeconds);
+        }
         throw new ProviderResponseError(
           `Groq server error (HTTP ${status}): ${rawMessage}`,
           'groq',

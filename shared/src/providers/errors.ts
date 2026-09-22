@@ -53,7 +53,7 @@ export class ProviderConfigurationError extends LLMProviderError {
 
 export class ProviderTimeoutError extends LLMProviderError {
   constructor(message: string, provider: string, model?: string) {
-    super(message, { provider, model, isRetryable: true });
+    super(message, { provider, model, statusCode: 408, isRetryable: true });
     this.name = 'ProviderTimeoutError';
   }
 }
@@ -74,7 +74,7 @@ export class ProviderNetworkError extends LLMProviderError {
 
 export class ProviderResponseError extends LLMProviderError {
   constructor(message: string, provider: string, statusCode: number, model?: string) {
-    const isRetryable = statusCode >= 500 && statusCode < 600;
+    const isRetryable = (statusCode >= 500 && statusCode < 600) || statusCode === 408;
     super(message, { provider, model, statusCode, isRetryable });
     this.name = 'ProviderResponseError';
   }

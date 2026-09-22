@@ -7,6 +7,7 @@ import {
   ProviderRateLimitError,
   ProviderNetworkError,
   ProviderResponseError,
+  ProviderConfigurationError,
   StructuredOutputParseError,
   StructuredOutputValidationError,
   TokenBucketRateLimiter,
@@ -19,10 +20,14 @@ export interface MockLLMConfig {
   shouldTimeout?: boolean;
   shouldRateLimit?: boolean;
   should5xx?: boolean;
+  should401?: boolean;
+  should403?: boolean;
+  should408?: boolean;
   shouldNetworkError?: boolean;
   shouldReturnMalformedJson?: boolean;
   rateLimiter?: TokenBucketRateLimiter;
   transientFailuresRemaining?: number;
+  retryAfterSeconds?: number;
 }
 
 export class MockLLMProvider implements LLMProvider {
@@ -99,13 +104,27 @@ export class MockLLMProvider implements LLMProvider {
   }
 
   private checkSimulatedErrors(): void {
+    if (this.config.should401) {
+      throw new ProviderConfigurationError('Simulated 401 Unauthorized API key', 'mock-llm');
+    }
+
+    if (this.config.should403) {
+      throw new ProviderConfigurationError('Simulated 403 Forbidden access', 'mock-llm');
+    }
+
+    if (this.config.should408) {
+      throw new ProviderTimeoutError('Simulated HTTP 408 Request Timeout', 'mock-llm');
+    }
+
     if (this.config.transientFailuresRemaining && this.config.transientFailuresRemaining > 0) {
       this.config.transientFailuresRemaining--;
-      throw new ProviderRateLimitError('Simulated transient 429 error', 'mock-llm', 'mock-model', 1);
+      const retryAfter = this.config.retryAfterSeconds ?? 1;
+      throw new ProviderRateLimitError('Simulated transient 429 error', 'mock-llm', 'mock-model', retryAfter);
     }
 
     if (this.config.shouldRateLimit) {
-      throw new ProviderRateLimitError('Simulated rate limit exceeded (HTTP 429)', 'mock-llm', 'mock-model', 1);
+      const retryAfter = this.config.retryAfterSeconds ?? 1;
+      throw new ProviderRateLimitError('Simulated rate limit exceeded (HTTP 429)', 'mock-llm', 'mock-model', retryAfter);
     }
 
     if (this.config.shouldTimeout) {
