@@ -23,7 +23,7 @@ export function configureCors() {
         return callback(null, true);
       }
 
-      return callback(new Error(`Origin ${origin} not permitted by CORS policy.`));
+      return callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
