@@ -1,3 +1,5 @@
+import { setTimeout } from 'node:timers';
+
 export interface RateLimiterOptions {
   capacity: number; // Maximum burst capacity
   refillRatePerSecond: number; // Tokens added per second

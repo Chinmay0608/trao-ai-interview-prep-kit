@@ -1,4 +1,5 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
+import { URL } from 'node:url';
 
 export interface DeduplicationInput {
   jobDescription: string;
