@@ -1,10 +1,6 @@
 # AI Interview Prep Kit
 
-> **TRAO Engineering Assessment Submission**  
-> **Document Type:** `ENGINEERING_ASSESSMENT`  
-> **Assessment ID:** `FS-AI-INTERVIEW-01`  
-> **AI Use Disclosure:** `assistive-permitted` (Used assistively for code structuring, testing acceleration, and refinement)  
-> **Repository:** [https://github.com/Chinmay0608/trao-ai-interview-prep-kit](https://github.com/Chinmay0608/trao-ai-interview-prep-kit)
+> Turn any job description into a structured, AI-powered interview prep kit in minutes.
 
 ---
 
@@ -191,7 +187,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - **Frontend Application**: Deployed on Vercel / Cloud Container (Configured with `NEXT_PUBLIC_API_URL`).
 - **Backend API Service**: Deployed on Container PaaS / Linux Host (Port 5000, connected to MongoDB Atlas).
 - **Database**: MongoDB Atlas M0 Free Tier cluster.
-- **Demo / Submission URL**: Accessible on local network or deployed host at `http://localhost:3000`.
+- **Demo URL**: Live demo coming soon.
 
 To run in production mode on a server:
 ```bash
@@ -307,21 +303,21 @@ The pipeline follows a strict topological execution sequence where each stage co
 
 ## 10. Pipeline Step Breakdown
 
-| Step # | Stage Identifier | Purpose & Execution | Output Produced |
-| :---: | :--- | :--- | :--- |
-| **1** | `EXTRACTING_JD` | Extracts structured role title, seniority, responsibilities, and requirements. Every requirement is grounded by a **verbatim quote** (`evidenceText`) from the JD. | `JDExtractionResult` (requirements, priority: must/nice, evidence map). |
-| **2** | `CRAWLING_SITE` | Safely crawls target company website under SSRF and robots constraints. | `CompanyCrawlResult` (scraped pages, text, crawl metrics). |
-| **3** | `SEARCHING_PUBLIC_INFO` | Gathers verified public interview rounds and engineering values. | `ResearchResult[]` (snippets, titles, sources). |
-| **4** | `SYNTHESIZING_BRIEF` | Synthesizes a factual, zero-hallucination company summary and interview focus. | `CompanyBrief` (`summary`, `what_they_do`, `sources`). |
-| **5** | `GENERATING_QUESTIONS` | Generates candidate questions across technical, behavioural, system design, and company fit categories. | `Question[]` with category, difficulty, criteria, and requirement tags. |
-| **6** | `CHECKING_COVERAGE` | Pure TypeScript calculation verifying which requirements are satisfied by the question bank. | `CoverageResult` (must-have coverage percentage, uncovered IDs). |
-| **7** | `SECOND_PASS_GAP_CLOSURE` | If any must-have requirement is uncovered, executes a targeted generation prompt focused strictly on the gap requirements. | Additional targeted questions closing coverage gaps. |
-| **7b**| `VALIDATING_QUESTIONS` | Validates every question against structural criteria (length, criteria count, requirement existence). Performs up to 2 corrective regeneration passes with deterministic fallbacks. | Validated, defect-free candidate questions. |
-| **8** | `RECHECKING_COVERAGE` | Verifies the invariant that 100% of must-have requirements are covered. Throws `COVERAGE_GAP_UNRESOLVED` if violated. | Final verified coverage object. |
-| **9** | `NORMALIZING_QUESTIONS` | Deduplicates question prompts and canonicalizes question IDs into `q-1`, `q-2`, etc. | Canonical question bank. |
-| **10**| `GENERATING_FLASHCARDS` | Creates active-recall flashcard pairs (front prompt + back structured answer) mapped to questions and requirements. | `Flashcard[]` array. |
-| **11**| `ALLOCATING_SCHEDULE` | Deterministically distributes questions across exactly $N$ days with spaced repetition and score-based prioritization. | `Schedule` (days 1..$N$, focus, duration, question references). |
-| **12**| `VALIDATING_APPENDIX_A` | Strips internal metadata (`_meta`) and serializes through `serializeToAppendixA()`, validating against the pristine Appendix A Zod schema. | Validated `AppendixAKit` object. |
+| Step # | Stage Identifier | Purpose |
+| :---: | :--- | :--- |
+| **1** | `EXTRACTING_JD` | Extracts structured role title, seniority, responsibilities, and requirements. Every requirement is grounded by a **verbatim quote** (`evidenceText`) from the JD. |
+| **2** | `CRAWLING_SITE` | Safely crawls target company website under SSRF and robots constraints. |
+| **3** | `SEARCHING_PUBLIC_INFO` | Gathers verified public interview rounds and engineering values. |
+| **4** | `SYNTHESIZING_BRIEF` | Synthesizes a factual, zero-hallucination company summary and interview focus. |
+| **5** | `GENERATING_QUESTIONS` | Generates candidate questions across technical, behavioural, system design, and company fit categories. |
+| **6** | `CHECKING_COVERAGE` | Pure TypeScript calculation verifying which requirements are satisfied by the question bank. |
+| **7** | `SECOND_PASS_GAP_CLOSURE` | If any must-have requirement is uncovered, executes a targeted generation prompt focused strictly on the gap requirements. |
+| **7b**| `VALIDATING_QUESTIONS` | Validates every question against structural criteria (length, criteria count, requirement existence). Performs up to 2 corrective regeneration passes with deterministic fallbacks. |
+| **8** | `RECHECKING_COVERAGE` | Verifies the invariant that 100% of must-have requirements are covered. Throws `COVERAGE_GAP_UNRESOLVED` if violated. |
+| **9** | `NORMALIZING_QUESTIONS` | Deduplicates question prompts and canonicalizes question IDs into `q-1`, `q-2`, etc. |
+| **10**| `GENERATING_FLASHCARDS` | Creates active-recall flashcard pairs (front prompt + back structured answer) mapped to questions and requirements. |
+| **11**| `ALLOCATING_SCHEDULE` | Deterministically distributes questions across exactly $N$ days with spaced repetition and score-based prioritization. |
+| **12**| `VALIDATING_APPENDIX_A` | Strips internal metadata (`_meta`) and serializes through `serializeToAppendixA()`, validating against the pristine Appendix A Zod schema. |
 
 ---
 
@@ -397,7 +393,6 @@ The schedule allocation engine (`shared/src/engine/scheduler.ts`) is **100% dete
 1. **Evidence-Grounded Extraction**: Requirements are never accepted from LLM hallucinations; every extracted requirement must include a verbatim quotation from the raw JD.
 2. **Deterministic Code Over Prompting for Logic**: Coverage calculation and scheduling are implemented as pure TypeScript functions rather than LLM prompts, eliminating nondeterminism and calculation errors.
 3. **SSRF Defense-in-Depth**: Full network socket IP inspection in the custom crawler prevents malicious SSRF probes against internal network services (AWS/GCP metadata endpoints, local Redis/Mongo).
-4. **Strict Monorepo Dependency Isolation**: `@trao/shared` contains zero server dependencies, allowing the client, server, and evaluator to share schemas and pure functions without bundling Node.js internals into the browser.
 
 ---
 
@@ -455,4 +450,4 @@ npm run evaluate -- --input tests/evaluation/fixtures/sample-cases.json --output
 ---
 
 ## License
-MIT License. Created for the TRAO Engineering Assessment (`FS-AI-INTERVIEW-01`).
+MIT License.
