@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { BuilderViewModel } from '@trao/shared';
 import { useKits } from '@/contexts/KitContext';
 import { api, ApiError } from '@/lib/api';
-import { ArrowLeft, Loader2, AlertCircle, Download, CheckCircle2, Building2, Calendar, Layers, Sparkles } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, Download, CheckCircle2, Building2, Calendar, Layers, Sparkles, Trash2 } from 'lucide-react';
+import { DeleteKitModal } from '../dashboard/DeleteKitModal';
 import { OverviewTab } from './tabs/OverviewTab';
 import { RequirementsTab } from './tabs/RequirementsTab';
 import { QuestionsTab } from './tabs/QuestionsTab';
@@ -34,6 +35,7 @@ export function KitBuilder({ kitId, onBack }: KitBuilderProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     fetchKit(kitId);
@@ -161,7 +163,7 @@ export function KitBuilder({ kitId, onBack }: KitBuilderProps) {
             </div>
           </div>
 
-          {/* Export Action */}
+          {/* Export & Delete Actions */}
           <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
             {exportError && (
               <span className="text-xs font-medium text-rose-600" role="alert">{exportError}</span>
@@ -175,6 +177,15 @@ export function KitBuilder({ kitId, onBack }: KitBuilderProps) {
             >
               <Download className="h-4 w-4 text-slate-400" aria-hidden="true" />
               <span>{exporting ? 'Exporting…' : 'Export JSON'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 hover:border-rose-300 transition-all shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+              aria-label="Delete prep kit"
+            >
+              <Trash2 className="h-4 w-4 text-rose-500" aria-hidden="true" />
+              <span>Delete</span>
             </button>
           </div>
         </div>
@@ -235,6 +246,17 @@ export function KitBuilder({ kitId, onBack }: KitBuilderProps) {
         {tab === 'schedule' && <ScheduleTab kit={kit} />}
         {tab === 'research' && <CompanyResearchTab kit={kit} />}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <DeleteKitModal
+          kitId={kitId}
+          roleTitle={roleTitle}
+          companyName={companyName}
+          onClose={() => setShowDeleteModal(false)}
+          onDeleted={onBack}
+        />
+      )}
     </div>
   );
 }

@@ -444,6 +444,74 @@ describe('Phase 7: Backend API, Authentication, SSE, and Regeneration', () => {
       expect(res.body.flashcards[0]._meta).toBeUndefined();
       expect(res.body.role.requirements[0]._meta).toBeUndefined();
     });
+
+    it('deletes an existing kit and associated generation jobs', async () => {
+      const kit = await Kit.create({
+        userId: userIdAlice,
+        deduplicationKey: 'del-key-1',
+        jobDescription: 'Backend engineer',
+        companyUrl: 'https://example.com',
+        daysAvailable: 3,
+        generationVersion: 1,
+        status: 'ready',
+      });
+
+      await GenerationJob.create({
+        kitId: kit._id,
+        userId: userIdAlice,
+        deduplicationKey: 'del-key-1',
+        status: 'completed',
+        currentStep: 'COMPLETED',
+        progress: 100,
+        generationVersion: 1,
+        retryAttempts: 0,
+      });
+
+      const res = await request(app)
+        .delete(`/api/kits/${kit._id.toString()}`)
+        .set('Authorization', `Bearer ${tokenAlice}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+
+      const foundKit = await Kit.findById(kit._id);
+      expect(foundKit).toBeNull();
+
+      const foundJobs = await GenerationJob.find({ kitId: kit._id });
+      expect(foundJobs.length).toBe(0);
+    });
+
+    it('returns 404 when kit does not exist', async () => {
+      const fakeId = new mongoose.Types.ObjectId().toString();
+      const res = await request(app)
+        .delete(`/api/kits/${fakeId}`)
+        .set('Authorization', `Bearer ${tokenAlice}`);
+
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 404 when trying to delete another user kit (user isolation)', async () => {
+      const bobKit = await Kit.create({
+        userId: userIdBob,
+        deduplicationKey: 'bob-del-key',
+        jobDescription: 'Frontend engineer',
+        companyUrl: 'https://bob.com',
+        daysAvailable: 2,
+        generationVersion: 1,
+        status: 'ready',
+      });
+
+      // Alice tries to delete Bob's kit
+      const res = await request(app)
+        .delete(`/api/kits/${bobKit._id.toString()}`)
+        .set('Authorization', `Bearer ${tokenAlice}`);
+
+      expect(res.status).toBe(404);
+
+      // Verify kit still exists
+      const foundKit = await Kit.findById(bobKit._id);
+      expect(foundKit).not.toBeNull();
+    });
   });
 
   // ===========================================================================

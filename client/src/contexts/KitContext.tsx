@@ -49,6 +49,7 @@ type KitAction =
   | { type: 'KIT_CLEAR' }
   | { type: 'JOB_UPDATE'; job: GenerationJobInfo }
   | { type: 'JOB_CLEAR' }
+  | { type: 'KIT_DELETED'; id: string }
   | { type: 'LIST_ITEM_UPDATE'; item: Partial<KitListItem> & { id: string } };
 
 function kitReducer(state: KitState, action: KitAction): KitState {
@@ -71,6 +72,12 @@ function kitReducer(state: KitState, action: KitAction): KitState {
       return { ...state, activeJob: action.job };
     case 'JOB_CLEAR':
       return { ...state, activeJob: null };
+    case 'KIT_DELETED':
+      return {
+        ...state,
+        list: state.list.filter((item) => item.id !== action.id),
+        activeKit: state.activeKit?.id === action.id ? null : state.activeKit,
+      };
     case 'LIST_ITEM_UPDATE': {
       const updated = state.list.map((item) =>
         item.id === action.item.id ? { ...item, ...action.item } : item
@@ -99,6 +106,7 @@ interface KitContextValue {
   refreshKit: (id: string) => Promise<void>;
   setActiveJob: (job: GenerationJobInfo | null) => void;
   clearActiveKit: () => void;
+  deleteKit: (id: string) => Promise<void>;
 }
 
 const KitContext = createContext<KitContextValue | null>(null);
@@ -175,6 +183,11 @@ export function KitProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'KIT_CLEAR' });
   }, []);
 
+  const deleteKit = useCallback(async (id: string) => {
+    await api.kits.delete(id);
+    dispatch({ type: 'KIT_DELETED', id });
+  }, []);
+
   return (
     <KitContext.Provider
       value={{
@@ -184,6 +197,7 @@ export function KitProvider({ children }: { children: React.ReactNode }) {
         refreshKit,
         setActiveJob,
         clearActiveKit,
+        deleteKit,
       }}
     >
       {children}

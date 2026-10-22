@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useKits, KitListItem } from '@/contexts/KitContext';
 import { CreateKitModal } from './CreateKitModal';
+import { DeleteKitModal } from './DeleteKitModal';
 import { GenerationProgress } from '../generation/GenerationProgress';
 import {
   Plus,
@@ -15,6 +16,7 @@ import {
   Calendar,
   Layers,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -25,6 +27,7 @@ interface DashboardProps {
 export function Dashboard({ onOpenKit }: DashboardProps) {
   const { list, listLoading, listError, fetchList } = useKits();
   const [showModal, setShowModal] = useState(false);
+  const [deletingKit, setDeletingKit] = useState<KitListItem | null>(null);
   const [activeJobKitId, setActiveJobKitId] = useState<string | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
@@ -170,7 +173,12 @@ export function Dashboard({ onOpenKit }: DashboardProps) {
       ) : (
         <div className="space-y-3">
           {list.map((kit) => (
-            <KitCard key={kit.id} kit={kit} onOpen={() => handleKitClick(kit)} />
+            <KitCard
+              key={kit.id}
+              kit={kit}
+              onOpen={() => handleKitClick(kit)}
+              onDelete={() => setDeletingKit(kit)}
+            />
           ))}
         </div>
       )}
@@ -178,6 +186,22 @@ export function Dashboard({ onOpenKit }: DashboardProps) {
       {/* Create modal */}
       {showModal && (
         <CreateKitModal onClose={() => setShowModal(false)} onCreated={handleCreated} />
+      )}
+
+      {/* Delete modal */}
+      {deletingKit && (
+        <DeleteKitModal
+          kitId={deletingKit.id}
+          roleTitle={deletingKit.role || 'Target Role'}
+          companyName={deletingKit.company || 'Company'}
+          onClose={() => setDeletingKit(null)}
+          onDeleted={() => {
+            if (activeJobKitId === deletingKit.id) {
+              setActiveJobId(null);
+              setActiveJobKitId(null);
+            }
+          }}
+        />
       )}
     </div>
   );
@@ -205,7 +229,15 @@ function EmptyState({ onNew }: { onNew: () => void }) {
   );
 }
 
-function KitCard({ kit, onOpen }: { kit: KitListItem; onOpen: () => void }) {
+function KitCard({
+  kit,
+  onOpen,
+  onDelete,
+}: {
+  kit: KitListItem;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
   const isClickable = kit.status === 'ready' || kit.status === 'generating';
 
   const roleTitle = kit.role || 'Target Role';
@@ -280,8 +312,20 @@ function KitCard({ kit, onOpen }: { kit: KitListItem; onOpen: () => void }) {
           </div>
         </div>
 
-        {/* Action Icon */}
-        <div className="flex items-center justify-end">
+        {/* Actions */}
+        <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+            title="Delete prep kit"
+            aria-label={`Delete prep kit ${roleTitle}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
           {isClickable && (
             <div className="w-8 h-8 rounded-lg bg-slate-50 group-hover:bg-blue-50 text-slate-400 group-hover:text-blue-600 flex items-center justify-center transition-colors">
               <ChevronRight className="h-4 w-4" aria-hidden="true" />

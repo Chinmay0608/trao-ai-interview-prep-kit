@@ -249,6 +249,12 @@ export const api = {
         method: 'DELETE',
       });
     },
+
+    async delete(id: string): Promise<{ success: boolean; id: string }> {
+      return request<{ success: boolean; id: string }>(`/api/kits/${id}`, {
+        method: 'DELETE',
+      });
+    },
   },
 
   jobs: {

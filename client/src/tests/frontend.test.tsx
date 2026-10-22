@@ -34,6 +34,7 @@ const { authStubs, kitStubs, jobStubs, mockApi, ApiError } = vi.hoisted(() => {
     togglePinQuestion: vi.fn(),
     addQuestion: vi.fn(),
     deleteQuestion: vi.fn(),
+    delete: vi.fn(),
   };
   const jobStubs = { get: vi.fn(), getStreamUrl: vi.fn() };
   const mockApi = { auth: authStubs, kits: kitStubs, jobs: jobStubs };
@@ -207,6 +208,26 @@ describe('Frontend: Dashboard', () => {
     await userEvent.click(screen.getByRole('button', { name: /new kit/i }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText(/new interview prep kit/i)).toBeInTheDocument();
+  });
+
+  it('8b. opens delete modal and deletes kit on confirmation', async () => {
+    mockApi.kits.list = vi.fn().mockResolvedValue([mockKit]);
+    mockApi.kits.delete = vi.fn().mockResolvedValue({ success: true, id: mockKitId });
+    renderWith(<Dashboard onOpenKit={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /delete prep kit/i })).toBeInTheDocument()
+    );
+    await userEvent.click(screen.getByRole('button', { name: /delete prep kit/i }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText(/permanently remove the question bank/i)).toBeInTheDocument();
+
+    const deleteButtons = screen.getAllByRole('button', { name: /delete prep kit/i });
+    const modalDeleteBtn = deleteButtons[deleteButtons.length - 1];
+    await userEvent.click(modalDeleteBtn);
+
+    await waitFor(() => {
+      expect(mockApi.kits.delete).toHaveBeenCalledWith(mockKitId);
+    });
   });
 });
 

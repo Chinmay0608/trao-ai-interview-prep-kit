@@ -259,6 +259,25 @@ router.get(
 );
 
 /**
+ * DELETE /api/kits/:id
+ * Deletes a prep kit and associated generation jobs owned by the user.
+ */
+router.delete(
+  '/:id',
+  requireAuth,
+  validateParams(KitParamsSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const kitId = req.params.id as string;
+      await jobService.deleteKit(kitId, req.user!.id);
+      res.status(200).json({ success: true, id: kitId });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
  * POST /api/kits/:id/regenerate
  * Scoped category or question regeneration preserving edits, custom items, and pins.
  */

@@ -222,6 +222,27 @@ export class GenerationJobService {
   }
 
   /**
+   * Deletes a prep kit and associated generation jobs ensuring user isolation.
+   */
+  public async deleteKit(kitId: string, userId: string): Promise<void> {
+    if (!mongoose.Types.ObjectId.isValid(kitId)) {
+      throw new KitNotFoundError(kitId);
+    }
+
+    const kit = await Kit.findById(kitId);
+    if (!kit) {
+      throw new KitNotFoundError(kitId);
+    }
+
+    if (kit.userId.toString() !== userId) {
+      throw new UnauthorizedAccessError('Kit', kitId);
+    }
+
+    await Kit.deleteOne({ _id: kit._id });
+    await GenerationJob.deleteMany({ kitId: kit._id });
+  }
+
+  /**
    * Updates job progress and refreshes heartbeat.
    */
   public async updateJobProgress(

@@ -22,3 +22,6 @@ kits.json
 cases.json
 *.pdf
 *.tsbuildinfo
+tmp/
+clear-kits.cjs
+
